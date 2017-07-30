@@ -63,6 +63,7 @@ public class ExcelReader {
         final boolean schemaIsPojo = !Map.class.isAssignableFrom(schema);
         if (schemaIsPojo) {
             Map<String, PropertySetter> pojoSetters = JavaBeanUtil.setters(schema);
+            schemaMapping.putAll(pojoSetters);
             for (Map.Entry<String, String> entry : captionSchemaMapping.entrySet()) {
                 String caption = entry.getKey().trim().toLowerCase();
                 String field = entry.getValue();
@@ -76,9 +77,6 @@ public class ExcelReader {
                         schemaMapping.put(caption, setter);
                     }
                 }
-            }
-            if (!pojoSetters.isEmpty()) {
-                schemaMapping.putAll(pojoSetters);
             }
         } else {
             for (Map.Entry<String, String> entry : captionSchemaMapping.entrySet()) {
@@ -204,8 +202,15 @@ public class ExcelReader {
                     continue;
                 }
                 caption = caption.trim();
-                String key = captionToSchemaTransformer.apply(caption);
-                PropertySetter setter = setterMap.get(key);
+                PropertySetter setter = null;
+                String translated = captionSchemaMapping.get(caption.toLowerCase());
+                if (null != translated) {
+                    setter = setterMap.get(translated);
+                }
+                if (null == setter) {
+                    String key = captionToSchemaTransformer.apply(caption);
+                    setter = setterMap.get(key);
+                }
                 if (null != setter) {
                     retVal.put(cell.getColumnIndex(), setter);
                 } else if (tolerantLevel.isAggressiveReading() && schemaIsMap) {
@@ -484,13 +489,17 @@ public class ExcelReader {
         return new Builder(captionToSchemaTransformer, tolerantLevel);
     }
 
+    private static PushbackInputStream pushbackInputStream(InputStream is) {
+        return new PushbackInputStream(is, 100);
+    }
+
     public static class Builder {
 
         public class ColumMapper {
             private String caption;
             private ColumMapper(String caption) {
                 E.illegalArgumentIf(S.blank(caption), "caption cannot be null or blank");
-                this.caption = caption.trim();
+                this.caption = caption.trim().toLowerCase();
             }
             public Builder to(String property) {
                 E.illegalArgumentIf(S.blank(property), "property cannot be null or blank");
@@ -534,7 +543,7 @@ public class ExcelReader {
                 isXlsx = false;
             }
             if (null == isXlsx) {
-                return inputStream(new PushbackInputStream(IO.is(new File(path))));
+                return inputStream(pushbackInputStream(IO.is(new File(path))));
             }
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
@@ -555,7 +564,7 @@ public class ExcelReader {
                 isXlsx = false;
             }
             if (null == isXlsx) {
-                return inputStream(new PushbackInputStream(IO.is(file)));
+                return inputStream(pushbackInputStream(IO.is(file)));
             }
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
@@ -588,7 +597,7 @@ public class ExcelReader {
                     }
                 }
                 if (null == isXlsx) {
-                    return inputStream(new PushbackInputStream(sobj.asInputStream()));
+                    return inputStream(pushbackInputStream(sobj.asInputStream()));
                 }
             }
 
@@ -632,7 +641,7 @@ public class ExcelReader {
         }
 
         public Builder inputStream(final InputStream is) {
-            InputStream probeStream = new PushbackInputStream(is);
+            InputStream probeStream = pushbackInputStream(is);
             try {
                 return inputStream(probeStream, DocumentFactoryHelper.hasOOXMLHeader(probeStream));
             } catch (IOException e) {
@@ -714,6 +723,5 @@ public class ExcelReader {
         public ExcelReader build() {
             return new ExcelReader(this);
         }
-
     }
 }

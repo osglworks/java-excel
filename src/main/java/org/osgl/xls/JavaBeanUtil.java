@@ -24,10 +24,7 @@ class JavaBeanUtil {
         Method[] methods = schema.getMethods();
         for (Method method : methods) {
             String name = method.getName();
-            if ("getClass".equals(name)) {
-                continue;
-            }
-            if (name.startsWith("get") && !Void.class.equals(method.getReturnType())) {
+            if (name.startsWith("set") && !Void.class.equals(method.getReturnType())) {
                 String property = name.substring(3);
                 if (property.length() < 1) {
                     continue;
