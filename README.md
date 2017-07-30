@@ -40,7 +40,7 @@ List<MyBean> data = ExcelReader.read(new File("/path/to/my/excel.xls"), MyBean.c
 
 ## Include/exclude sheets
 
-Excel reader is intelligent enough to skip non-matching worksheets, e.g. cover page. However it also provide ways for developer to manually select or exclude specific worksheets:
+Excel reader is intelligent enough to skip non-matching worksheets, e.g. cover page. However it also provides ways for developer to manually select or exclude specific worksheets:
 
 ### Read specified sheets
 
@@ -81,7 +81,7 @@ List<Map<String, Object>> data = ExcelReader.builder(CaptionSchemaTransformStrat
         .read();
 ```
 
-In case your caption is in a different language, you must do manual map:
+In case your caption is in a different language, you must do manual mapping:
 
 ```java
 ExcelReader reader = ExcelReader.builder()
