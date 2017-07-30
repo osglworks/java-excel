@@ -87,7 +87,6 @@ In case your caption is in a different language, you must do manual map:
 ExcelReader reader = ExcelReader.builder()
         .map("姓").to("lastName")
         .map("名").to("firstName")
-        .map("ID").to("no")
         .map("学号").to("no")
         .map("出生日期").to("dob")
         .map("年级").to("grade")
