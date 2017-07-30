@@ -24,7 +24,7 @@ Add the following section to your `pom.xml` file:
 </parent>
 ```
 
-## Sample usage
+## Simple use cases
 
 Read all sheets into list of ordered map data structure:
 
@@ -64,3 +64,41 @@ List<MyBean> data = ExcelReader.builder()
     .file(new File("/path/..."))
     .build().read(MyBean.class);
 ```
+
+## Caption to property mapping
+
+By default caption will be mapped into standard Java property name, i.e. the lowercase started camel case string, e.g. `First name` will be mapped into `firstName`. This feature makes it very handy when reading into a POJO data list. However when reading into a Map list and you want to keep the caption as map key, then you can create `ExcelReader` using different caption to property transform strategy:
+
+```java
+List<Map<String, Object>> data = ExcelReader.builder(CaptionSchemaTransformStrategy.AS_CAPTION)
+        .file(sampleFile())
+        .build()
+        .read();
+```
+
+In case your caption is in a different language, you must do manual map:
+
+```java
+ExcelReader reader = ExcelReader.builder()
+        .map("姓").to("lastName")
+        .map("名").to("firstName")
+        .map("ID").to("no")
+        .map("学号").to("no")
+        .map("出生日期").to("dob")
+        .map("年级").to("grade")
+        .map("国家").to("country")
+        .map("邮编").to("postCode")
+        .file(sampleFile())
+        .build();
+List<Student> data = reader.read(Student.class);
+```
+
+Or you can do it this way:
+
+```java
+ExcelReader reader = ExcelReader.builder(
+        C.map("姓", "lastName", "名", "firstName", ...)
+).file(sampleFile()).build();
+```
+
+This technique also applied when your caption is English words but there is no simple way to process the transform through any strategy, e.g. `Street #` into `streetNo` etc.

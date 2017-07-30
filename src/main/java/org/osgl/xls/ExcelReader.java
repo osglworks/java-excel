@@ -1,6 +1,7 @@
 package org.osgl.xls;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.poifs.filesystem.DocumentFactoryHelper;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.osgl.$;
@@ -11,10 +12,7 @@ import org.osgl.logging.Logger;
 import org.osgl.storage.ISObject;
 import org.osgl.util.*;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 
 public class ExcelReader {
@@ -68,12 +66,12 @@ public class ExcelReader {
             for (Map.Entry<String, String> entry : captionSchemaMapping.entrySet()) {
                 String caption = entry.getKey().trim().toLowerCase();
                 String field = entry.getValue();
-                PropertySetter setter = pojoSetters.remove(field);
+                PropertySetter setter = pojoSetters.get(field);
                 if (null != setter) {
                     schemaMapping.put(caption, setter);
                 } else if (tolerantLevel.isTolerant()) {
                     field = captionToSchemaTransformer.apply(caption);
-                    setter = pojoSetters.remove(field);
+                    setter = pojoSetters.get(field);
                     if (null != setter) {
                         schemaMapping.put(caption, setter);
                     }
@@ -110,7 +108,7 @@ public class ExcelReader {
             return;
         }
         int startRow = captionRowHolder.get() + 1;
-        int maxRow = sheet.getLastRowNum();
+        int maxRow = sheet.getLastRowNum() + 1;
         for (int rowId = startRow; rowId < maxRow; ++rowId) {
             Object entity = schemaIsMap ? new LinkedHashMap<>() : $.newInstance(schema);
             Row row = sheet.getRow(rowId);
@@ -118,14 +116,18 @@ public class ExcelReader {
             for (Map.Entry<Integer, PropertySetter> entry : columnIndex.entrySet()) {
                 try {
                     Cell cell = row.getCell(entry.getKey());
-                    Object value = readCellValue(cell);
-                    if (null != value) {
-                        isEmptyRow = false;
-                        try {
-                            entry.getValue().set(entity, value, null);
-                        } catch (Exception e) {
-                            tolerantLevel.errorSettingCellValueToPojo(e, cell, value, schema);
+                    try {
+                        Object value = readCellValue(cell);
+                        if (null != value) {
+                            isEmptyRow = false;
+                            try {
+                                entry.getValue().set(entity, value, null);
+                            } catch (Exception e) {
+                                tolerantLevel.errorSettingCellValueToPojo(e, cell, value, schema);
+                            }
                         }
+                    } catch (Exception e) {
+                        tolerantLevel.onReadCellException(e, cell);
                     }
                 } catch (Exception e) {
                     tolerantLevel.onReadCellException(e, sheet, row, entry.getKey());
@@ -146,7 +148,16 @@ public class ExcelReader {
     private Object readCellValue(Cell cell, CellType type) {
         switch (type) {
             case NUMERIC:
-                return cell.getNumericCellValue();
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue();
+                }
+                double n = cell.getNumericCellValue();
+                CellStyle style = cell.getCellStyle();
+                String format = style.getDataFormatString();
+                if (format.indexOf('.') < 0) {
+                    return (long) n;
+                }
+                return n;
             case FORMULA:
                 return readCellValue(cell, cell.getCachedFormulaResultTypeEnum());
             case BOOLEAN:
@@ -173,7 +184,7 @@ public class ExcelReader {
         if (tolerantLevel.isStrict()) {
             return buildColumnIndex(sheet.getRow(captionRow), setterMap, schemaIsMap);
         }
-        Map<Integer, PropertySetter> index = null;
+        Map<Integer, PropertySetter> index = C.map();
         for (int rowId = captionRow; rowId < maxRow; ++rowId) {
             index = buildColumnIndex(sheet.getRow(rowId), setterMap, schemaIsMap);
             if (!index.isEmpty()) {
@@ -193,7 +204,8 @@ public class ExcelReader {
                     continue;
                 }
                 caption = caption.trim();
-                PropertySetter setter = setterMap.get(caption.toLowerCase());
+                String key = captionToSchemaTransformer.apply(caption);
+                PropertySetter setter = setterMap.get(key);
                 if (null != setter) {
                     retVal.put(cell.getColumnIndex(), setter);
                 } else if (tolerantLevel.isAggressiveReading() && schemaIsMap) {
@@ -226,10 +238,6 @@ public class ExcelReader {
         public boolean isAggressiveReading() {
             return AGGRESSIVE_READ == this;
         }
-        public void excelTypeNotDetermined() {
-            E.illegalArgumentIf(isStrict(), "cannot determine excel sheet file type");
-            LOGGER.warn("cannot determine excel sheet file type. Will treat it as '.xls' file");
-        }
 
         public void captionRowOutOfScope(Sheet sheet) {
             String message = S.fmt("caption row out of scope in sheet[%s] !", sheet.getSheetName());
@@ -248,7 +256,15 @@ public class ExcelReader {
         }
 
         public void onReadCellException(Exception e, Sheet sheet, Row row, int cellIndex) {
-            String errorMessage = S.fmt("Error reading cell value: %s@%s@%s", cellIndex, row.getRowNum(), sheet.getSheetName());
+            String errorMessage = S.fmt("Error reading cell value: %s-%s@[%s]", cellIndex, row.getRowNum(), sheet.getSheetName());
+            if (isStrict()) {
+                throw new ExcelReadException(e, errorMessage);
+            }
+            LOGGER.warn(e, errorMessage);
+        }
+
+        public void onReadCellException(Exception e, Cell cell) {
+            String errorMessage = S.fmt("Error reading cell value: %s@[%s]", cell.getAddress(), cell.getSheet().getSheetName());
             if (isStrict()) {
                 throw new ExcelReadException(e, errorMessage);
             }
@@ -257,20 +273,20 @@ public class ExcelReader {
 
         public Object readErrorCell(Cell cell) {
             if (isStrict()) {
-                throw new ExcelReadException("Error cell value encountered: %s@%s@%s", cell.getRowIndex(), cell.getRow().getRowNum(), cell.getRow().getSheet().getSheetName());
+                throw new ExcelReadException("Error cell value encountered: %s@[%s]", cell.getAddress(), cell.getRow().getSheet().getSheetName());
             }
             return null;
         }
 
         public Object readUnknownCellType(Cell cell) {
             if (isStrict()) {
-                throw new ExcelReadException("Unknown cell type encountered: %s@%s@%s", cell.getRowIndex(), cell.getRow().getRowNum(), cell.getRow().getSheet().getSheetName());
+                throw new ExcelReadException("Unknown cell type encountered: %s@[%s]", cell.getAddress(), cell.getRow().getSheet().getSheetName());
             }
             return null;
         }
 
         public void errorSettingCellValueToPojo(Exception e, Cell cell, Object value, Class<?> schema) {
-            String errorMessage = S.fmt("failed to set cell value[%s] to POJO[%s]: %s@%s@%s", value, schema, cell.getRowIndex(), cell.getRow().getRowNum(), cell.getRow().getSheet().getSheetName());
+            String errorMessage = S.fmt("failed to set cell value[%s] to POJO[%s]: %s@[%s]", value, schema, cell.getAddress(), cell.getRow().getSheet().getSheetName());
             if (isStrict()) {
                 throw new ExcelReadException(e, errorMessage);
             }
@@ -469,6 +485,21 @@ public class ExcelReader {
     }
 
     public static class Builder {
+
+        public class ColumMapper {
+            private String caption;
+            private ColumMapper(String caption) {
+                E.illegalArgumentIf(S.blank(caption), "caption cannot be null or blank");
+                this.caption = caption.trim();
+            }
+            public Builder to(String property) {
+                E.illegalArgumentIf(S.blank(property), "property cannot be null or blank");
+                Builder builder = Builder.this;
+                builder.captionSchemaMapping.put(caption, property);
+                return builder;
+            }
+        }
+
         private $.Func0<InputStream> inputStreamProvider;
         private $.Predicate<Sheet> sheetSelector = SheetSelector.ALL;
         // map table header caption to object schema
@@ -496,7 +527,16 @@ public class ExcelReader {
         }
 
         public Builder file(final String path) {
-            setXlsx(path.endsWith(".xlsx"));
+            Boolean isXlsx = null;
+            if (path.endsWith(".xlsx")) {
+                isXlsx = true;
+            } else if (path.endsWith(".xls")) {
+                isXlsx = false;
+            }
+            if (null == isXlsx) {
+                return inputStream(new PushbackInputStream(IO.is(new File(path))));
+            }
+            this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
                 public InputStream apply() throws NotAppliedException, Osgl.Break {
@@ -507,7 +547,17 @@ public class ExcelReader {
         }
 
         public Builder file(final File file) {
-            setXlsx(file.getName().endsWith(".xlsx"));
+            Boolean isXlsx = null;
+            String path = file.getPath();
+            if (path.endsWith(".xlsx")) {
+                isXlsx = true;
+            } else if (path.endsWith(".xls")) {
+                isXlsx = false;
+            }
+            if (null == isXlsx) {
+                return inputStream(new PushbackInputStream(IO.is(file)));
+            }
+            this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
                 public InputStream apply() throws NotAppliedException, Osgl.Break {
@@ -518,23 +568,36 @@ public class ExcelReader {
         }
 
         public Builder sobject(final ISObject sobj) {
+            Boolean isXlsx = null;
             String s = sobj.getAttribute(ISObject.ATTR_FILE_NAME);
             if (S.notBlank(s)) {
-                isXlsx = s.endsWith(".xlsx");
-            } else {
-                s = sobj.getAttribute(ISObject.ATTR_CONTENT_TYPE);
-                if (S.notBlank(s)) {
-                    isXlsx = s.startsWith("application/vnd.openxmlformats-officedocument.spreadsheetml");
-                } else {
-                    tolerantLevel.excelTypeNotDetermined();
+                if (s.endsWith(".xlsx")) {
+                    isXlsx = true;
+                } else if (s.endsWith(".xls")) {
                     isXlsx = false;
                 }
             }
+
+            if (null == isXlsx) {
+                s = sobj.getAttribute(ISObject.ATTR_CONTENT_TYPE);
+                if (S.notBlank(s)) {
+                    if (s.startsWith("application/vnd.openxmlformats-officedocument.spreadsheetml")) {
+                        isXlsx = true;
+                    } else if ("application/vnd.ms-excel".equals(s)) {
+                        isXlsx = false;
+                    }
+                }
+                if (null == isXlsx) {
+                    return inputStream(new PushbackInputStream(sobj.asInputStream()));
+                }
+            }
+
+            this.isXlsx = isXlsx;
             return sobject(sobj, isXlsx);
         }
 
         public Builder sobject(final ISObject sobj, boolean isXlsx) {
-            setXlsx(isXlsx);
+            this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
                 public InputStream apply() throws NotAppliedException, Osgl.Break {
@@ -552,14 +615,13 @@ public class ExcelReader {
                 xlsx = false;
             }
             if (null == xlsx) {
-                tolerantLevel.excelTypeNotDetermined();
-                xlsx = false;
+                return inputStream(IO.is(ExcelReader.class.getResource(url)));
             }
             return classResource(url, xlsx);
         }
 
-        public Builder classResource(final String url, boolean xlsx) {
-            setXlsx(xlsx);
+        public Builder classResource(final String url, boolean isXlsx) {
+            this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
                 public InputStream apply() throws NotAppliedException, Osgl.Break {
@@ -570,12 +632,16 @@ public class ExcelReader {
         }
 
         public Builder inputStream(final InputStream is) {
-            tolerantLevel.excelTypeNotDetermined();
-            return inputStream(is, false);
+            InputStream probeStream = new PushbackInputStream(is);
+            try {
+                return inputStream(probeStream, DocumentFactoryHelper.hasOOXMLHeader(probeStream));
+            } catch (IOException e) {
+                throw E.ioException(e);
+            }
         }
 
-        public Builder inputStream(final InputStream is, boolean xlsx) {
-            setXlsx(xlsx);
+        public Builder inputStream(final InputStream is, boolean isXlsx) {
+            this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
                 public InputStream apply() throws NotAppliedException, Osgl.Break {
@@ -622,6 +688,10 @@ public class ExcelReader {
             return this;
         }
 
+        public ColumMapper map(String caption) {
+            return new ColumMapper(caption);
+        }
+
         public Builder captionSchemaMapping(Map mapping) {
             E.illegalArgumentIf(mapping.isEmpty(), "empty caption to schema mapping found");
             captionSchemaMapping = $.cast($.notNull(mapping));
@@ -645,9 +715,5 @@ public class ExcelReader {
             return new ExcelReader(this);
         }
 
-        private void setXlsx(boolean xlsx) {
-            Feature.checkSupport(xlsx);
-            this.isXlsx = xlsx;
-        }
     }
 }
