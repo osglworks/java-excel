@@ -108,4 +108,3 @@ ExcelReader reader = ExcelReader.builder(
 
 This technique also applied when your caption is English words but there is no simple way to process the transform through any strategy, e.g. `Street #` into `streetNo` etc.
 
-## Type 
