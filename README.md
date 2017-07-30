@@ -38,16 +38,11 @@ Read all sheets into list of POJO object:
 List<MyBean> data = ExcelReader.read(new File("/path/to/my/excel.xls"), MyBean.class);
 ```
 
-Read sheets with caption to field/map key transform
+## Include/exclude sheets
 
-```java
-List<MyBean> data = ExcelReader.read(
-        new File("/path/to/my/excel.xls"), 
-        MyBean.class,
-        C.map("姓名", "name", "性别", "gender", ...));
-```
+Excel reader is intelligent enough to skip non-matching worksheets, e.g. cover page. However it also provide ways for developer to manually select or exclude specific worksheets:
 
-Read specified sheets
+### Read specified sheets
 
 ```java
 List<MyBean> data = ExcelReader.builder()
@@ -56,7 +51,7 @@ List<MyBean> data = ExcelReader.builder()
     .build().read(MyBean.class);
 ```
 
-Read with sheets excluded
+### exclude worksheets
 
 ```java
 List<MyBean> data = ExcelReader.builder()
@@ -64,6 +59,16 @@ List<MyBean> data = ExcelReader.builder()
     .file(new File("/path/..."))
     .build().read(MyBean.class);
 ```
+
+## Type conversion
+
+When reading into Map, Excel reader use the cell type to determine the read value type. Excel reader is smart enough to read Date value even it is typed as `Numeric` in excel.
+
+When reading into POJO, Excel reader will cover the read value into the field type, including all primitive types, wrapped types, String and any enum type.
+
+## Nested POJO
+
+At the moment Excel reader does not support reading into nested POJO.  
 
 ## Caption to property mapping
 
@@ -102,3 +107,5 @@ ExcelReader reader = ExcelReader.builder(
 ```
 
 This technique also applied when your caption is English words but there is no simple way to process the transform through any strategy, e.g. `Street #` into `streetNo` etc.
+
+## Type 
