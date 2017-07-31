@@ -6,8 +6,8 @@ import org.osgl.util.Keyword;
 
 import java.util.Map;
 
-public final class CaptionSchemaTransformStrategy {
-    private CaptionSchemaTransformStrategy() {}
+public final class HeaderTransformStrategy {
+    private HeaderTransformStrategy() {}
 
     public static $.Function<String, String> AS_CAPTION = $.F.identity();
 

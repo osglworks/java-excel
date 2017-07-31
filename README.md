@@ -68,20 +68,64 @@ When reading into POJO, Excel reader will cover the read value into the field ty
 
 ## Nested POJO
 
-At the moment Excel reader does not support reading into nested POJO.  
-
-## Caption to property mapping
-
-By default caption will be mapped into standard Java property name, i.e. the lowercase started camel case string, e.g. `First name` will be mapped into `firstName`. This feature makes it very handy when reading into a POJO data list. However when reading into a Map list and you want to keep the caption as map key, then you can create `ExcelReader` using different caption to property transform strategy:
+Excel reader support loading data into nested POJO. For example, suppose we have a nested POJO as:
 
 ```java
-List<Map<String, Object>> data = ExcelReader.builder(CaptionSchemaTransformStrategy.AS_CAPTION)
+// The address 
+public class Address {
+    private String unitNo;
+    ...
+    public String getUnitNo() {
+        return unitNo;
+    }
+    public void setUnitNo(String unitNo) {
+        this.unitNo = unitNo;
+    }
+    ...
+}
+// The student
+public class Student {
+    public String id;
+    public String name;
+    public Address address;
+}
+```
+
+And we have an excel sheet looks like
+
+| Id  | Name | Unit # | Street # | Street | Suburb | State |
+| --- | ---- | ------ | -------- | ------ | ----- | ----- |
+| A001 | John Smith | 2 | 2-4 | Peak | CastleHill | NSW |
+
+We can load the data into the student POJO as:
+
+```java
+ExcelReader reader = ExcelReader.builder()
+        .map("Unit #").to("address.unitNo")
+        .map("Street #").to("address.streetNo")
+        .map("Street").to("address.street")
+        .map("Suburb").to("address.suburb")
+        .map("State").to("address.state")
+        .map("Post code").to("address.postCode")
+        .file(sampleFile())
+        .build();
+List<Student> data = reader.read(Student.class);
+``` 
+
+**Note** we just need to map the headers that cannot be transformed automatically, for headers like `Id` and `Name` we don't need to map them because Excel reader can handle them automatically.
+
+## Header mapping
+
+By default header will be mapped into standard Java property name, i.e. the lowercase started camel case string, e.g. `First name` will be mapped into `firstName`. This feature makes it very handy when reading into a POJO data list. However when reading into a Map list and you want to keep the header as map key, then you can create `ExcelReader` using different header to property transform strategy:
+
+```java
+List<Map<String, Object>> data = ExcelReader.builder(HeaderSchemaTransformStrategy.AS_CAPTION)
         .file(sampleFile())
         .build()
         .read();
 ```
 
-In case your caption is in a different language, you must do manual mapping:
+In case your header is in a different language, you must do manual mapping:
 
 ```java
 ExcelReader reader = ExcelReader.builder()
@@ -105,5 +149,5 @@ ExcelReader reader = ExcelReader.builder(
 ).file(sampleFile()).build();
 ```
 
-This technique also applied when your caption is English words but there is no simple way to process the transform through any strategy, e.g. `Street #` into `streetNo` etc.
+This technique also applied when your header is English words but there is no simple way to process the transform through any strategy, e.g. `Street #` into `streetNo` etc.
 

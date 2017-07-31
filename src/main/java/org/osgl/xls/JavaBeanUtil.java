@@ -1,6 +1,8 @@
 package org.osgl.xls;
 
 import org.osgl.$;
+import org.osgl.Osgl;
+import org.osgl.util.C;
 import org.osgl.util.PropertySetter;
 import org.osgl.util.S;
 
@@ -9,15 +11,46 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 class JavaBeanUtil {
     private JavaBeanUtil() {}
 
-    static Map<String, PropertySetter> setters(Class<?> schema) {
-        Map<String, PropertySetter> map = new HashMap<>();
-        loadSettersFromSetterMethod(schema, map);
-        loadSettersFromFields(schema, map);
-        return map;
+    static Map<String, PropertySetter> setters(Class<?> schema, Map<String, String> headerMapping) {
+        Map<String, PropertySetter> setterMap = new HashMap<>();
+        loadSettersFromSetterMethod(schema, setterMap);
+        loadSettersFromFields(schema, setterMap);
+        processNestedSetters(schema, headerMapping, setterMap);
+        return setterMap;
+    }
+
+    private static void processNestedSetters(Class<?> schema, Map<String, String> headerMapping, Map<String, PropertySetter> setterMap) {
+        Set<String> nestedProperties = C.newSet();
+        for (String prop: headerMapping.values()) {
+            if (prop.contains(".")) {
+                nestedProperties.add(prop);
+            }
+        }
+        if (nestedProperties.isEmpty()) {
+            return;
+        }
+        for (final String prop : nestedProperties) {
+            PropertySetter setter = new PropertySetter() {
+                @Override
+                public void set(Object entity, Object value, Object index) {
+                    $.setProperty(entity, value, prop);
+                }
+
+                @Override
+                public void setObjectFactory(Osgl.Function<Class<?>, Object> factory) {
+                }
+
+                @Override
+                public void setStringValueResolver(Osgl.Func2<String, Class<?>, ?> stringValueResolver) {
+                }
+            };
+            setterMap.put(prop, setter);
+        }
     }
 
     private static void loadSettersFromSetterMethod(Class<?> schema, Map<String, PropertySetter> map) {

@@ -1,7 +1,6 @@
 package org.osgl.xls;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.osgl.util.E;
 
@@ -37,7 +36,7 @@ public class ExcelReaderTest extends Assert {
 
     @Test
     public void testReadIntoMapWithKeepCaptionSchemaTransformStategy() {
-        List<Map<String, Object>> data = ExcelReader.builder(CaptionSchemaTransformStrategy.AS_CAPTION)
+        List<Map<String, Object>> data = ExcelReader.builder(HeaderTransformStrategy.AS_CAPTION)
                 .file(sampleFile())
                 .build()
                 .read();
@@ -92,7 +91,6 @@ public class ExcelReaderTest extends Assert {
     }
 
     @Test
-    @Ignore // read into nexted POJO is TBD
     public void testReadIntoNestedPojo() {
         ExcelReader reader = ExcelReader.builder()
                 .map("Unit #").to("address.unitNo")

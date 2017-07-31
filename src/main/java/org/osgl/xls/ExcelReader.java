@@ -22,21 +22,21 @@ public class ExcelReader {
     private final boolean isXlsx;
     private final $.Func0<InputStream> inputStreamProvider;
     private final $.Predicate<Sheet> sheetSelector;
-    private final int captionRow;
+    private final int headerRow;
     private final boolean ignoreEmptyRows;
     private final TolerantLevel tolerantLevel;
-    private final $.Function<String, String> captionToSchemaTransformer;
-    private final Map<String, String> captionSchemaMapping;
+    private final $.Function<String, String> headerTransformer;
+    private final Map<String, String> headerMapping;
 
     private ExcelReader(Builder builder) {
         inputStreamProvider = $.notNull(builder.inputStreamProvider);
         sheetSelector = builder.sheetSelector;
-        captionRow = builder.captionRow;
+        headerRow = builder.headerRow;
         ignoreEmptyRows = builder.ignoreEmptyRows;
         isXlsx = builder.isXlsx;
         tolerantLevel = builder.tolerantLevel;
-        captionSchemaMapping = builder.captionSchemaMapping;
-        captionToSchemaTransformer = builder.captionToSchemaTransformer;
+        headerMapping = builder.headerMapping;
+        headerTransformer = builder.headerTransformer;
     }
 
     public List<Map<String, Object>> read() {
@@ -62,24 +62,24 @@ public class ExcelReader {
         Map<String, PropertySetter> schemaMapping = new HashMap<>();
         final boolean schemaIsPojo = !Map.class.isAssignableFrom(schema);
         if (schemaIsPojo) {
-            Map<String, PropertySetter> pojoSetters = JavaBeanUtil.setters(schema);
+            Map<String, PropertySetter> pojoSetters = JavaBeanUtil.setters(schema, headerMapping);
             schemaMapping.putAll(pojoSetters);
-            for (Map.Entry<String, String> entry : captionSchemaMapping.entrySet()) {
-                String caption = entry.getKey().trim().toLowerCase();
+            for (Map.Entry<String, String> entry : headerMapping.entrySet()) {
+                String header = entry.getKey().trim().toLowerCase();
                 String field = entry.getValue();
                 PropertySetter setter = pojoSetters.get(field);
                 if (null != setter) {
-                    schemaMapping.put(caption, setter);
+                    schemaMapping.put(header, setter);
                 } else if (tolerantLevel.isTolerant()) {
-                    field = captionToSchemaTransformer.apply(caption);
+                    field = headerTransformer.apply(header);
                     setter = pojoSetters.get(field);
                     if (null != setter) {
-                        schemaMapping.put(caption, setter);
+                        schemaMapping.put(header, setter);
                     }
                 }
             }
         } else {
-            for (Map.Entry<String, String> entry : captionSchemaMapping.entrySet()) {
+            for (Map.Entry<String, String> entry : headerMapping.entrySet()) {
                 schemaMapping.put(entry.getKey(), new MapSetter(entry.getValue()));
             }
         }
@@ -96,16 +96,16 @@ public class ExcelReader {
     }
 
     private <TYPE> void read(Sheet sheet, final List<TYPE> dataList, Map<String, PropertySetter> setterMap, Class<? extends TYPE>  schema) {
-        $.Var<Integer> captionRowHolder = $.var(this.captionRow);
+        $.Var<Integer> headerRowHolder = $.var(this.headerRow);
         boolean schemaIsMap = Map.class.isAssignableFrom(schema);
-        Map<Integer, PropertySetter> columnIndex = buildColumnIndex(sheet, setterMap, schemaIsMap, captionRowHolder);
+        Map<Integer, PropertySetter> columnIndex = buildColumnIndex(sheet, setterMap, schemaIsMap, headerRowHolder);
         if (columnIndex.size() < setterMap.size()) {
             tolerantLevel.columnIndexMapNotFullyBuilt(sheet);
         }
         if (columnIndex.isEmpty()) {
             return;
         }
-        int startRow = captionRowHolder.get() + 1;
+        int startRow = headerRowHolder.get() + 1;
         int maxRow = sheet.getLastRowNum() + 1;
         for (int rowId = startRow; rowId < maxRow; ++rowId) {
             Object entity = schemaIsMap ? new LinkedHashMap<>() : $.newInstance(schema);
@@ -171,22 +171,22 @@ public class ExcelReader {
         }
     }
 
-    private Map<Integer, PropertySetter> buildColumnIndex(Sheet sheet, Map<String, PropertySetter> setterMap, boolean schemaIsMap, $.Var<Integer> captionRowHolder) {
+    private Map<Integer, PropertySetter> buildColumnIndex(Sheet sheet, Map<String, PropertySetter> setterMap, boolean schemaIsMap, $.Var<Integer> headerRowHolder) {
         int startRow = sheet.getFirstRowNum();
         int maxRow = sheet.getLastRowNum();
-        int captionRow = this.captionRow;
-        if (captionRow < startRow || captionRow >= maxRow) {
-            tolerantLevel.captionRowOutOfScope(sheet);
-            captionRow = startRow;
+        int headerRow = this.headerRow;
+        if (headerRow < startRow || headerRow >= maxRow) {
+            tolerantLevel.headerRowOutOfScope(sheet);
+            headerRow = startRow;
         }
         if (tolerantLevel.isStrict()) {
-            return buildColumnIndex(sheet.getRow(captionRow), setterMap, schemaIsMap);
+            return buildColumnIndex(sheet.getRow(headerRow), setterMap, schemaIsMap);
         }
         Map<Integer, PropertySetter> index = C.map();
-        for (int rowId = captionRow; rowId < maxRow; ++rowId) {
+        for (int rowId = headerRow; rowId < maxRow; ++rowId) {
             index = buildColumnIndex(sheet.getRow(rowId), setterMap, schemaIsMap);
             if (!index.isEmpty()) {
-                captionRowHolder.set(rowId);
+                headerRowHolder.set(rowId);
                 return index;
             }
         }
@@ -197,24 +197,24 @@ public class ExcelReader {
         Map<Integer, PropertySetter> retVal = new HashMap<>();
         for (Cell cell : row) {
             try {
-                String caption = cell.getStringCellValue();
-                if (S.blank(caption)) {
+                String header = cell.getStringCellValue();
+                if (S.blank(header)) {
                     continue;
                 }
-                caption = caption.trim();
+                header = header.trim();
                 PropertySetter setter = null;
-                String translated = captionSchemaMapping.get(caption.toLowerCase());
+                String translated = headerMapping.get(header.toLowerCase());
                 if (null != translated) {
                     setter = setterMap.get(translated);
                 }
                 if (null == setter) {
-                    String key = captionToSchemaTransformer.apply(caption);
+                    String key = headerTransformer.apply(header);
                     setter = setterMap.get(key);
                 }
                 if (null != setter) {
                     retVal.put(cell.getColumnIndex(), setter);
                 } else if (tolerantLevel.isAggressiveReading() && schemaIsMap) {
-                    retVal.put(cell.getColumnIndex(), new MapSetter(captionToSchemaTransformer.apply(caption)));
+                    retVal.put(cell.getColumnIndex(), new MapSetter(headerTransformer.apply(header)));
                 }
             } catch (Exception e) {
                 LOGGER.debug(e, "error reading cell value:" + cell);
@@ -244,7 +244,7 @@ public class ExcelReader {
             return AGGRESSIVE_READ == this;
         }
 
-        public void captionRowOutOfScope(Sheet sheet) {
+        public void headerRowOutOfScope(Sheet sheet) {
             String message = S.fmt("caption row out of scope in sheet[%s] !", sheet.getSheetName());
             if (isStrict()) {
                 throw new ExcelReadException(message);
@@ -314,15 +314,15 @@ public class ExcelReader {
      * A quick API for reading an excel file and return a {@link List list} of {@link Map maps}
      * where each map corresponding to an excel sheet row.
      *
-     * A `captionSchemaMapping` {@link Map map} is provided to allow developer to translate
-     * the caption string into map key, e.g. `姓名` to `name`
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
+     * the header string into map key, e.g. `姓名` to `name`
      *
      * @param file the excel source file
-     * @param captionSchemaMapping a string-string map that defines caption to map key transform
+     * @param headerMapping a string-string map that defines caption to map key transform
      * @return the map list as described above
      */
-    public static List<Map<String, Object>> read(File file, Map<String, String> captionSchemaMapping) {
-        return builder().file(file).captionSchemaMapping(captionSchemaMapping).build().read();
+    public static List<Map<String, Object>> read(File file, Map<String, String> headerMapping) {
+        return builder().file(file).headerMapping(headerMapping).build().read();
     }
 
     /**
@@ -343,16 +343,16 @@ public class ExcelReader {
      * instances where the type is specified by `schema` parameter, where each pojo
      * instance is corresponding to an excel sheet row
      *
-     * A `captionSchemaMapping` {@link Map map} is provided to allow developer to translate
-     * the caption string into map key, e.g. `姓名` to `name`
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
+     * the header string into map key, e.g. `姓名` to `name`
      *
      * @param file the excel source file
      * @param schema specify the POJO object type
-     * @param captionSchemaMapping a string-string map that defines caption to map key transform
+     * @param headerMapping a string-string map that defines header to map key transform
      * @return the pojo object list as described above
      */
-    public static <T> List<T> read(File file, Class<T> schema, Map<String, String> captionSchemaMapping) {
-        return builder().file(file).captionSchemaMapping(captionSchemaMapping).build().read(schema);
+    public static <T> List<T> read(File file, Class<T> schema, Map<String, String> headerMapping) {
+        return builder().file(file).headerMapping(headerMapping).build().read(schema);
     }
 
 
@@ -371,15 +371,15 @@ public class ExcelReader {
      * A quick API for reading an excel inputStream and return a {@link List list} of {@link Map maps}
      * where each map corresponding to an excel sheet row.
      *
-     * A `captionSchemaMapping` {@link Map map} is provided to allow developer to translate
-     * the caption string into map key, e.g. `姓名` to `name`
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
+     * the header string into map key, e.g. `姓名` to `name`
      *
      * @param inputStream the excel source inputStream
-     * @param captionSchemaMapping a string-string map that defines caption to map key transform
+     * @param headerMapping a string-string map that defines header to map key transform
      * @return the map list as described above
      */
-    public static List<Map<String, Object>> read(InputStream inputStream, Map<String, String> captionSchemaMapping) {
-        return builder().inputStream(inputStream).captionSchemaMapping(captionSchemaMapping).build().read();
+    public static List<Map<String, Object>> read(InputStream inputStream, Map<String, String> headerMapping) {
+        return builder().inputStream(inputStream).headerMapping(headerMapping).build().read();
     }
 
     /**
@@ -400,16 +400,16 @@ public class ExcelReader {
      * instances where the type is specified by `schema` parameter, where each pojo
      * instance is corresponding to an excel sheet row
      *
-     * A `captionSchemaMapping` {@link Map map} is provided to allow developer to translate
-     * the caption string into map key, e.g. `姓名` to `name`
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
+     * the header string into map key, e.g. `姓名` to `name`
      *
      * @param inputStream the excel source inputStream
      * @param schema specify the POJO object type
-     * @param captionSchemaMapping a string-string map that defines caption to map key transform
+     * @param headerMapping a string-string map that defines caption to map key transform
      * @return the pojo object list as described above
      */
-    public static <T> List<T> read(InputStream inputStream, Class<T> schema, Map<String, String> captionSchemaMapping) {
-        return builder().inputStream(inputStream).captionSchemaMapping(captionSchemaMapping).build().read(schema);
+    public static <T> List<T> read(InputStream inputStream, Class<T> schema, Map<String, String> headerMapping) {
+        return builder().inputStream(inputStream).headerMapping(headerMapping).build().read(schema);
     }
 
 
@@ -428,15 +428,15 @@ public class ExcelReader {
      * A quick API for reading an excel sobj and return a {@link List list} of {@link Map maps}
      * where each map corresponding to an excel sheet row.
      *
-     * A `captionSchemaMapping` {@link Map map} is provided to allow developer to translate
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the caption string into map key, e.g. `姓名` to `name`
      *
      * @param sobj the excel source sobj
-     * @param captionSchemaMapping a string-string map that defines caption to map key transform
+     * @param headerMapping a string-string map that defines caption to map key transform
      * @return the map list as described above
      */
-    public static List<Map<String, Object>> read(ISObject sobj, Map<String, String> captionSchemaMapping) {
-        return builder().sobject(sobj).captionSchemaMapping(captionSchemaMapping).build().read();
+    public static List<Map<String, Object>> read(ISObject sobj, Map<String, String> headerMapping) {
+        return builder().sobject(sobj).headerMapping(headerMapping).build().read();
     }
 
     /**
@@ -457,24 +457,24 @@ public class ExcelReader {
      * instances where the type is specified by `schema` parameter, where each pojo
      * instance is corresponding to an excel sheet row
      *
-     * A `captionSchemaMapping` {@link Map map} is provided to allow developer to translate
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the caption string into map key, e.g. `姓名` to `name`
      *
      * @param sobj the excel source sobj
      * @param schema specify the POJO object type
-     * @param captionSchemaMapping a string-string map that defines caption to map key transform
+     * @param headerMapping a string-string map that defines caption to map key transform
      * @return the pojo object list as described above
      */
-    public static <T> List<T> read(ISObject sobj, Class<T> schema, Map<String, String> captionSchemaMapping) {
-        return builder().sobject(sobj).captionSchemaMapping(captionSchemaMapping).build().read(schema);
+    public static <T> List<T> read(ISObject sobj, Class<T> schema, Map<String, String> headerMapping) {
+        return builder().sobject(sobj).headerMapping(headerMapping).build().read(schema);
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static Builder builder(Map captionSchemaMapping) {
-        return new Builder().captionSchemaMapping(captionSchemaMapping);
+    public static Builder builder(Map headerMapping) {
+        return new Builder().headerMapping(headerMapping);
     }
 
     public static Builder builder(TolerantLevel tolerantLevel) {
@@ -495,16 +495,16 @@ public class ExcelReader {
 
     public static class Builder {
 
-        public class ColumMapper {
+        public class HeaderMapper {
             private String caption;
-            private ColumMapper(String caption) {
+            private HeaderMapper(String caption) {
                 E.illegalArgumentIf(S.blank(caption), "caption cannot be null or blank");
                 this.caption = caption.trim().toLowerCase();
             }
             public Builder to(String property) {
                 E.illegalArgumentIf(S.blank(property), "property cannot be null or blank");
                 Builder builder = Builder.this;
-                builder.captionSchemaMapping.put(caption, property);
+                builder.headerMapping.put(caption, property);
                 return builder;
             }
         }
@@ -512,11 +512,11 @@ public class ExcelReader {
         private $.Func0<InputStream> inputStreamProvider;
         private $.Predicate<Sheet> sheetSelector = SheetSelector.ALL;
         // map table header caption to object schema
-        private Map<String, String> captionSchemaMapping = new HashMap<>();
+        private Map<String, String> headerMapping = new HashMap<>();
         private boolean isXlsx = false;
-        private int captionRow = 0;
+        private int headerRow = 0;
         private boolean ignoreEmptyRows = true;
-        private $.Function<String, String> captionToSchemaTransformer = CaptionSchemaTransformStrategy.TO_JAVA_NAME;
+        private $.Function<String, String> headerTransformer = HeaderTransformStrategy.TO_JAVA_NAME;
         private TolerantLevel tolerantLevel = TolerantLevel.AGGRESSIVE_READ;
 
         public Builder() {
@@ -526,12 +526,12 @@ public class ExcelReader {
             this.tolerantLevel = $.notNull(tolerantLevel);
         }
 
-        public Builder($.Function<String, String> captionToSchemaTransformer) {
-            this.captionToSchemaTransformer = $.notNull(captionToSchemaTransformer);
+        public Builder($.Function<String, String> headerTransformer) {
+            this.headerTransformer = $.notNull(headerTransformer);
         }
 
-        public Builder($.Function<String, String> captionToSchemaTransformer, TolerantLevel tolerantLevel) {
-            this.captionToSchemaTransformer = $.notNull(captionToSchemaTransformer);
+        public Builder($.Function<String, String> headerTransformer, TolerantLevel tolerantLevel) {
+            this.headerTransformer = $.notNull(headerTransformer);
             this.tolerantLevel = $.notNull(tolerantLevel);
         }
 
@@ -681,9 +681,9 @@ public class ExcelReader {
             return sheetSelector(SheetSelector.excludeByPosition(indexes));
         }
 
-        public Builder captionRow(int rowIndex) {
+        public Builder headerRow(int rowIndex) {
             E.illegalArgumentIf(rowIndex < 0, "start row must not be negative");
-            captionRow = rowIndex;
+            headerRow = rowIndex;
             return this;
         }
 
@@ -697,25 +697,25 @@ public class ExcelReader {
             return this;
         }
 
-        public ColumMapper map(String caption) {
-            return new ColumMapper(caption);
+        public HeaderMapper map(String header) {
+            return new HeaderMapper(header);
         }
 
-        public Builder captionSchemaMapping(Map mapping) {
-            E.illegalArgumentIf(mapping.isEmpty(), "empty caption to schema mapping found");
-            captionSchemaMapping = $.cast($.notNull(mapping));
+        public Builder headerMapping(Map mapping) {
+            E.illegalArgumentIf(mapping.isEmpty(), "empty header mapping found");
+            headerMapping = $.cast($.notNull(mapping));
             return this;
         }
 
-        public Builder readColumns(String... captions) {
-            return readColumns(C.listOf(captions));
+        public Builder readColumns(String... headers) {
+            return readColumns(C.listOf(headers));
         }
 
-        public Builder readColumns(Collection<String> captions) {
-            E.illegalArgumentIf(captions.isEmpty(), "empty read column caption collection found");
-            captionSchemaMapping = new HashMap<>();
-            for (String caption : captions) {
-                captionSchemaMapping.put(caption, captionToSchemaTransformer.apply(caption));
+        public Builder readColumns(Collection<String> headers) {
+            E.illegalArgumentIf(headers.isEmpty(), "empty read column caption collection found");
+            headerMapping = new HashMap<>();
+            for (String header : headers) {
+                headerMapping.put(header, headerTransformer.apply(header));
             }
             return this;
         }
