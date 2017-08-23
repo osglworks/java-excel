@@ -106,7 +106,6 @@ ExcelReader reader = ExcelReader.builder()
         .map("Street").to("address.street")
         .map("Suburb").to("address.suburb")
         .map("State").to("address.state")
-        .map("Post code").to("address.postCode")
         .file(sampleFile())
         .build();
 List<Student> data = reader.read(Student.class);
