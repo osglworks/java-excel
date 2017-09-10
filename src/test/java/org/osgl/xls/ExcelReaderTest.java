@@ -1,7 +1,27 @@
 package org.osgl.xls;
 
-import org.junit.Assert;
+/*-
+ * #%L
+ * Java Excel Reader
+ * %%
+ * Copyright (C) 2017 OSGL (Open Source General Library)
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
 import org.junit.Test;
+import org.osgl.ut.TestBase;
 import org.osgl.util.E;
 
 import java.io.File;
@@ -12,7 +32,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-public class ExcelReaderTest extends Assert {
+public class ExcelReaderTest extends TestBase {
 
     private URL sampleUrl() {
         return ExcelReaderTest.class.getResource("/students.xlsx");
@@ -25,13 +45,13 @@ public class ExcelReaderTest extends Assert {
     @Test
     public void testReadIntoMap() {
         List<Map<String, Object>> data = ExcelReader.read(sampleFile());
-        assertEquals(2, data.size());
+        eq(2, data.size());
         Map<String, Object> s1 = data.get(0);
-        assertEquals("张", s1.get("姓"));
-        assertEquals("武侯区", s1.get("区"));
+        eq("张", s1.get("姓"));
+        eq("武侯区", s1.get("区"));
         Map<String, Object> s2 = data.get(1);
-        assertEquals("John", s2.get("firstName"));
-        assertEquals("Premier St", s2.get("street"));
+        eq("John", s2.get("firstName"));
+        eq("Premier St", s2.get("street"));
     }
 
     @Test
@@ -41,24 +61,24 @@ public class ExcelReaderTest extends Assert {
                 .build()
                 .read();
         Map<String, Object> s1 = data.get(0);
-        assertEquals("张", s1.get("姓"));
-        assertEquals("武侯区", s1.get("区"));
-        assertEquals(dobOfZhang(), s1.get("出生日期"));
+        eq("张", s1.get("姓"));
+        eq("武侯区", s1.get("区"));
+        eq(dobOfZhang(), s1.get("出生日期"));
         Map<String, Object> s2 = data.get(1);
-        assertEquals("John", s2.get("First Name"));
-        assertEquals("Premier St", s2.get("Street"));
-        assertEquals(dobOfJohn(), s2.get("DOB"));
+        eq("John", s2.get("First Name"));
+        eq("Premier St", s2.get("Street"));
+        eq(dobOfJohn(), s2.get("DOB"));
     }
 
     @Test
     public void testReadIntoPojo() {
         List<Student> data = ExcelReader.read(sampleFile(), Student.class);
-        assertEquals(1, data.size());
+        eq(1, data.size());
         Student s1 = data.get(0);
-        assertEquals("John", s1.getFirstName());
-        assertEquals(Student.Grade.g1, s1.getGrade());
-        assertEquals(Student.Country.AUSTRALIA, s1.getCountry());
-        assertEquals(dobOfJohn(), s1.getDob());
+        eq("John", s1.getFirstName());
+        eq(Student.Grade.g1, s1.getGrade());
+        eq(Student.Country.AUSTRALIA, s1.getCountry());
+        eq(dobOfJohn(), s1.getDob());
     }
 
     @Test
@@ -75,19 +95,19 @@ public class ExcelReaderTest extends Assert {
                 .file(sampleFile())
                 .build();
         List<Student> data = reader.read(Student.class);
-        assertEquals(2, data.size());
+        eq(2, data.size());
 
         Student s0 = data.get(0);
-        assertEquals("三", s0.getFirstName());
-        assertEquals(Student.Grade.g1, s0.getGrade());
-        assertEquals(Student.Country.CHINA, s0.getCountry());
-        assertEquals(dobOfZhang(), s0.getDob());
+        eq("三", s0.getFirstName());
+        eq(Student.Grade.g1, s0.getGrade());
+        eq(Student.Country.CHINA, s0.getCountry());
+        eq(dobOfZhang(), s0.getDob());
 
         Student s1 = data.get(1);
-        assertEquals("John", s1.getFirstName());
-        assertEquals(Student.Grade.g1, s1.getGrade());
-        assertEquals(Student.Country.AUSTRALIA, s1.getCountry());
-        assertEquals(dobOfJohn(), s1.getDob());
+        eq("John", s1.getFirstName());
+        eq(Student.Grade.g1, s1.getGrade());
+        eq(Student.Country.AUSTRALIA, s1.getCountry());
+        eq(dobOfJohn(), s1.getDob());
     }
 
     @Test
@@ -102,16 +122,16 @@ public class ExcelReaderTest extends Assert {
                 .file(sampleFile())
                 .build();
         List<Student> data = reader.read(Student.class);
-        assertEquals(1, data.size());
+        eq(1, data.size());
         Student s1 = data.get(0);
         Address addr = s1.getAddress();
-        assertNotNull(addr);
-        assertEquals("29", addr.getUnitNo());
-        assertEquals("26-30", addr.getStreetNo());
-        assertEquals("Premier St", addr.getStreet());
-        assertEquals("Kogarah", addr.getSuburb());
-        assertEquals("NSW", addr.getState());
-        assertEquals("2217", addr.getPostCode());
+        notNull(addr);
+        eq("29", addr.getUnitNo());
+        eq("26-30", addr.getStreetNo());
+        eq("Premier St", addr.getStreet());
+        eq("Kogarah", addr.getSuburb());
+        eq("NSW", addr.getState());
+        eq("2217", addr.getPostCode());
     }
 
     private static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");

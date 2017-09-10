@@ -20,5 +20,14 @@ package org.osgl.xls;
  * #L%
  */
 
-public class StartColumnStrategy {
+import org.junit.Test;
+import org.osgl.ut.TestBase;
+
+public class VersionTest extends TestBase {
+
+    @Test
+    public void versionShallContainsExcelReader() {
+        yes(ExcelReader.VERSION.toString().contains("excel-reader"));
+    }
+
 }
