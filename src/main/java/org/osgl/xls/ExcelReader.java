@@ -26,12 +26,12 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.osgl.$;
 import org.osgl.Osgl;
-import org.osgl.bootstrap.Version;
 import org.osgl.exception.NotAppliedException;
 import org.osgl.logging.LogManager;
 import org.osgl.logging.Logger;
 import org.osgl.storage.ISObject;
 import org.osgl.util.*;
+import osgl.version.Version;
 
 import java.io.*;
 import java.util.*;

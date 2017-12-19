@@ -21,7 +21,7 @@ package org.osgl.xls;
  */
 
 import org.junit.Test;
-import org.osgl.ut.TestBase;
+import osgl.ut.TestBase;
 
 public class VersionTest extends TestBase {
 

@@ -21,8 +21,8 @@ package org.osgl.xls;
  */
 
 import org.junit.Test;
-import org.osgl.ut.TestBase;
 import org.osgl.util.E;
+import osgl.ut.TestBase;
 
 import java.io.File;
 import java.net.URL;
