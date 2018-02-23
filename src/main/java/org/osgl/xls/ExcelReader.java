@@ -34,6 +34,7 @@ import org.osgl.util.*;
 import osgl.version.Version;
 
 import java.io.*;
+import java.net.URL;
 import java.util.*;
 
 public class ExcelReader {
@@ -143,6 +144,9 @@ public class ExcelReader {
             for (Map.Entry<Integer, PropertySetter> entry : columnIndex.entrySet()) {
                 try {
                     Cell cell = row.getCell(entry.getKey());
+                    if (null == cell) {
+                        continue;
+                    }
                     try {
                         Object value = readCellValue(cell);
                         if (null != value) {
@@ -392,6 +396,70 @@ public class ExcelReader {
 
 
     /**
+     * A quick API for reading an URL points to an Excel file and return a {@link List list} of {@link Map maps}
+     * where each map corresponding to an excel sheet row
+     *
+     * @param url
+     *      the URL points to an excel source file
+     * @return the map list as described above
+     */
+    public static List<Map<String, Object>> read(URL url) {
+        return builder().url(url).build().read();
+    }
+
+    /**
+     * A quick API for reading an URL points to an Excel file  and return a {@link List list} of {@link Map maps}
+     * where each map corresponding to an excel sheet row.
+     *
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
+     * the header string into map key, e.g. `姓名` to `name`
+     *
+     * @param url
+     *      the URL points to an excel source file
+     * @param headerMapping
+     *      a string-string map that defines caption to map key transform
+     * @return the map list as described above
+     */
+    public static List<Map<String, Object>> read(URL url, Map<String, String> headerMapping) {
+        return builder().url(url).headerMapping(headerMapping).build().read();
+    }
+
+    /**
+     * A quick API for reading an URL points to  an excel file and return a {@link List list} of POJO object
+     * instances where the type is specified by `schema` parameter, where each pojo
+     * instance is corresponding to an excel sheet row
+     *
+     * @param url
+     *      the URL points to an excel source file
+     * @param schema
+     *      specify the POJO object type
+     * @return the pojo object list as described above
+     */
+    public static <T> List<T> read(URL url, Class<T> schema) {
+        return builder().url(url).build().read(schema);
+    }
+
+    /**
+     * A quick API for reading an URL points to an excel file and return a {@link List list} of POJO object
+     * instances where the type is specified by `schema` parameter, where each pojo
+     * instance is corresponding to an excel sheet row
+     *
+     * A `headerMapping` {@link Map map} is provided to allow developer to translate
+     * the header string into map key, e.g. `姓名` to `name`
+     *
+     * @param url
+     *      the URL points to an excel source file
+     * @param schema
+     *      specify the POJO object type
+     * @param headerMapping
+     *      a string-string map that defines header to map key transform
+     * @return the pojo object list as described above
+     */
+    public static <T> List<T> read(URL url, Class<T> schema, Map<String, String> headerMapping) {
+        return builder().url(url).headerMapping(headerMapping).build().read(schema);
+    }
+
+    /**
      * A quick API for reading an excel inputStream and return a {@link List list} of {@link Map maps}
      * where each map corresponding to an excel sheet row
      *
@@ -571,6 +639,41 @@ public class ExcelReader {
         public Builder($.Function<String, String> headerTransformer, TolerantLevel tolerantLevel) {
             this.headerTransformer = $.notNull(headerTransformer);
             this.tolerantLevel = $.notNull(tolerantLevel);
+        }
+
+        public Builder resource(String path) {
+            URL url = ExcelReader.class.getResource(path);
+            if (null == url) {
+                if (path.startsWith("/")) {
+                    path = path.substring(1);
+                } else {
+                    path = "/" + path;
+                }
+                url = ExcelReader.class.getResource(path);
+                throw E.ioException("Resource not found: " + path);
+            }
+            return url(url);
+        }
+
+        public Builder url(final URL url) {
+            Boolean isXlsx = null;
+            String path = url.getPath();
+            if (path.endsWith(".xlsx")) {
+                isXlsx = true;
+            } else if (path.endsWith(".xls")) {
+                isXlsx = false;
+            }
+            if (null == isXlsx) {
+                return inputStream(pushbackInputStream(IO.is(url)));
+            }
+            this.isXlsx = isXlsx;
+            inputStreamProvider = new $.F0<InputStream>() {
+                @Override
+                public InputStream apply() throws NotAppliedException, Osgl.Break {
+                    return new BufferedInputStream(IO.is(url));
+                }
+            };
+            return this;
         }
 
         public Builder file(final String path) {

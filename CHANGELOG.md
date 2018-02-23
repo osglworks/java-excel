@@ -1,5 +1,10 @@
 # act-excel CHANGE LOG
 
+1.3.0
+* Add shortcut read helper method that takes a URL as input #6
+* NPE on `ExcelReader$TolerantLevel.onReadCellException` #5
+* update to osgl-tool-1.6
+
 1.2.0
 * update to osgl-tool-1.5
 
