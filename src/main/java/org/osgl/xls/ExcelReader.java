@@ -21,11 +21,10 @@ package org.osgl.xls;
  */
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.poifs.filesystem.DocumentFactoryHelper;
+import org.apache.poi.poifs.filesystem.FileMagic;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.osgl.$;
-import org.osgl.Osgl;
 import org.osgl.exception.NotAppliedException;
 import org.osgl.logging.LogManager;
 import org.osgl.logging.Logger;
@@ -54,7 +53,7 @@ public class ExcelReader {
     private final String terminator;
 
     private ExcelReader(Builder builder) {
-        inputStreamProvider = $.notNull(builder.inputStreamProvider);
+        inputStreamProvider = $.requireNotNull(builder.inputStreamProvider);
         sheetSelector = builder.sheetSelector;
         headerRow = builder.headerRow;
         ignoreEmptyRows = builder.ignoreEmptyRows;
@@ -218,7 +217,7 @@ public class ExcelReader {
         if (tolerantLevel.isStrict()) {
             return buildColumnIndex(sheet.getRow(headerRow), setterMap, schemaIsMap);
         }
-        Map<Integer, PropertySetter> index = C.map();
+        Map<Integer, PropertySetter> index = C.Map();
         for (int rowId = headerRow; rowId < maxRow; ++rowId) {
             index = buildColumnIndex(sheet.getRow(rowId), setterMap, schemaIsMap);
             if (!index.isEmpty()) {
@@ -629,16 +628,16 @@ public class ExcelReader {
         }
 
         public Builder(TolerantLevel tolerantLevel) {
-            this.tolerantLevel = $.notNull(tolerantLevel);
+            this.tolerantLevel = $.requireNotNull(tolerantLevel);
         }
 
         public Builder($.Function<String, String> headerTransformer) {
-            this.headerTransformer = $.notNull(headerTransformer);
+            this.headerTransformer = $.requireNotNull(headerTransformer);
         }
 
         public Builder($.Function<String, String> headerTransformer, TolerantLevel tolerantLevel) {
-            this.headerTransformer = $.notNull(headerTransformer);
-            this.tolerantLevel = $.notNull(tolerantLevel);
+            this.headerTransformer = $.requireNotNull(headerTransformer);
+            this.tolerantLevel = $.requireNotNull(tolerantLevel);
         }
 
         public Builder resource(String path) {
@@ -669,7 +668,7 @@ public class ExcelReader {
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
-                public InputStream apply() throws NotAppliedException, Osgl.Break {
+                public InputStream apply() throws NotAppliedException, $.Break {
                     return new BufferedInputStream(IO.is(url));
                 }
             };
@@ -684,13 +683,13 @@ public class ExcelReader {
                 isXlsx = false;
             }
             if (null == isXlsx) {
-                return inputStream(pushbackInputStream(IO.is(new File(path))));
+                return inputStream(pushbackInputStream(IO.inputStream(new File(path))));
             }
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
-                public InputStream apply() throws NotAppliedException, Osgl.Break {
-                    return new BufferedInputStream(IO.is(new File(path)));
+                public InputStream apply() throws NotAppliedException, $.Break {
+                    return new BufferedInputStream(IO.inputStream(new File(path)));
                 }
             };
             return this;
@@ -705,13 +704,13 @@ public class ExcelReader {
                 isXlsx = false;
             }
             if (null == isXlsx) {
-                return inputStream(pushbackInputStream(IO.is(file)));
+                return inputStream(pushbackInputStream(IO.inputStream(file)));
             }
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
-                public InputStream apply() throws NotAppliedException, Osgl.Break {
-                    return new BufferedInputStream(IO.is(file));
+                public InputStream apply() throws NotAppliedException, $.Break {
+                    return new BufferedInputStream(IO.inputStream(file));
                 }
             };
             return this;
@@ -750,7 +749,7 @@ public class ExcelReader {
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
-                public InputStream apply() throws NotAppliedException, Osgl.Break {
+                public InputStream apply() throws NotAppliedException, $.Break {
                     return sobj.asInputStream();
                 }
             };
@@ -774,7 +773,7 @@ public class ExcelReader {
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
-                public InputStream apply() throws NotAppliedException, Osgl.Break {
+                public InputStream apply() throws NotAppliedException, $.Break {
                     return IO.is(ExcelReader.class.getResource(url));
                 }
             };
@@ -784,7 +783,7 @@ public class ExcelReader {
         public Builder inputStream(final InputStream is) {
             InputStream probeStream = pushbackInputStream(is);
             try {
-                return inputStream(probeStream, DocumentFactoryHelper.hasOOXMLHeader(probeStream));
+                return inputStream(probeStream,  FileMagic.valueOf(probeStream) == FileMagic.OOXML);
             } catch (IOException e) {
                 throw E.ioException(e);
             }
@@ -794,7 +793,7 @@ public class ExcelReader {
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
-                public InputStream apply() throws NotAppliedException, Osgl.Break {
+                public InputStream apply() throws NotAppliedException, $.Break {
                     return is;
                 }
             };
@@ -807,7 +806,7 @@ public class ExcelReader {
         }
 
         public Builder sheetSelector($.Predicate<Sheet> sheetPredicate) {
-            sheetSelector = $.notNull(sheetPredicate);
+            sheetSelector = $.requireNotNull(sheetPredicate);
             return this;
         }
 
@@ -854,7 +853,7 @@ public class ExcelReader {
 
         public Builder headerMapping(Map mapping) {
             E.illegalArgumentIf(mapping.isEmpty(), "empty header mapping found");
-            headerMapping = $.cast($.notNull(mapping));
+            headerMapping = $.cast($.requireNotNull(mapping));
             return this;
         }
 

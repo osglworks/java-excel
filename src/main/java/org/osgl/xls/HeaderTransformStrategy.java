@@ -21,7 +21,6 @@ package org.osgl.xls;
  */
 
 import org.osgl.$;
-import org.osgl.Osgl;
 import org.osgl.util.Keyword;
 
 import java.util.Map;
@@ -43,7 +42,7 @@ public final class HeaderTransformStrategy {
     }
 
     public static $.Function<String, String> translate(final Map<String, String> dictionary) {
-        return new Osgl.Transformer<String, String>() {
+        return new $.Transformer<String, String>() {
             @Override
             public String transform(String caption) {
                 return dictionary.get(caption);

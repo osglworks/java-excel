@@ -21,7 +21,6 @@ package org.osgl.xls;
  */
 
 import org.osgl.$;
-import org.osgl.Osgl;
 import org.osgl.util.C;
 import org.osgl.util.PropertySetter;
 import org.osgl.util.S;
@@ -62,11 +61,11 @@ class JavaBeanUtil {
                 }
 
                 @Override
-                public void setObjectFactory(Osgl.Function<Class<?>, Object> factory) {
+                public void setObjectFactory($.Function<Class<?>, Object> factory) {
                 }
 
                 @Override
-                public void setStringValueResolver(Osgl.Func2<String, Class<?>, ?> stringValueResolver) {
+                public void setStringValueResolver($.Func2<String, Class<?>, ?> stringValueResolver) {
                 }
             };
             setterMap.put(prop, setter);
