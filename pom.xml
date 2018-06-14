@@ -20,7 +20,7 @@
 
   <artifactId>excel-reader</artifactId>
   <packaging>jar</packaging>
-  <version>1.4.0</version>
+  <version>1.4.1-SNAPSHOT</version>
 
   <name>Java Excel Reader</name>
   <description>An easy to use and flexible Excel file reader</description>
