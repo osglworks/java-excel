@@ -1,5 +1,9 @@
 # act-excel CHANGE LOG
 
+1.4.1
+* error while reading multiple empty rows separated by data #7
+* update to osgl-tool-1.18.0
+
 1.4.0 - 14/Jun/2018
 * update to osgl-tool-1.15.1
 

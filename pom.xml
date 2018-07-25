@@ -41,7 +41,7 @@
   <properties>
     <scm.url>git@github.com:osglworks/java-excel-reader.git</scm.url>
 
-    <osgl-tool.version>1.15.1</osgl-tool.version>
+    <osgl-tool.version>1.18.0-SNAPSHOT</osgl-tool.version>
     <osgl-logging.version>1.2.0</osgl-logging.version>
     <osgl-storage.version>1.7.0</osgl-storage.version>
 

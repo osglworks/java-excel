@@ -139,6 +139,9 @@ public class ExcelReader {
         for (int rowId = startRow; rowId < maxRow; ++rowId) {
             Object entity = schemaIsMap ? new LinkedHashMap<>() : $.newInstance(schema);
             Row row = sheet.getRow(rowId);
+            if (null == row) {
+                continue;
+            }
             boolean isEmptyRow = true;
             for (Map.Entry<Integer, PropertySetter> entry : columnIndex.entrySet()) {
                 try {
