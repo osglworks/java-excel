@@ -20,6 +20,10 @@ package org.osgl.xls;
  * #L%
  */
 
+import org.osgl.$;
+import org.osgl.util.N;
+import org.osgl.util.S;
+
 import java.util.Date;
 
 public class Student {
@@ -38,6 +42,7 @@ public class Student {
     private Date dob;
     private Grade grade;
     private Country country;
+    public double distribution;
 
     private Address address;
 
@@ -97,4 +102,16 @@ public class Student {
         this.country = country;
     }
 
+    public static Student random(int no) {
+        Student student = new Student();
+        student.setAddress(Address.random());
+        student.setCountry($.random(Country.values()));
+        student.setDob(new Date());
+        student.setGrade($.random(Grade.values()));
+        student.setFirstName(S.random(N.randInt(8) + 3));
+        student.setLastName(S.random(N.randInt(8) + 3));
+        student.setNo(no);
+        student.distribution = N.randDouble();
+        return student;
+    }
 }

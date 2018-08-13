@@ -21,16 +21,10 @@ package org.osgl.xls;
  */
 
 import org.osgl.$;
-import org.osgl.util.C;
-import org.osgl.util.PropertySetter;
-import org.osgl.util.S;
+import org.osgl.util.*;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.lang.reflect.*;
+import java.util.*;
 
 class JavaBeanUtil {
     private JavaBeanUtil() {}
@@ -39,11 +33,11 @@ class JavaBeanUtil {
         Map<String, PropertySetter> setterMap = new HashMap<>();
         loadSettersFromSetterMethod(schema, setterMap);
         loadSettersFromFields(schema, setterMap);
-        processNestedSetters(schema, headerMapping, setterMap);
+        processNestedSetters(headerMapping, setterMap);
         return setterMap;
     }
 
-    private static void processNestedSetters(Class<?> schema, Map<String, String> headerMapping, Map<String, PropertySetter> setterMap) {
+    private static void processNestedSetters(Map<String, String> headerMapping, Map<String, PropertySetter> setterMap) {
         Set<String> nestedProperties = C.newSet();
         for (String prop: headerMapping.values()) {
             if (prop.contains(".")) {
@@ -102,4 +96,5 @@ class JavaBeanUtil {
             map.put(propertyName, $.propertyHandlerFactory.createPropertySetter(schema, propertyName));
         }
     }
+
 }

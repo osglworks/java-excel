@@ -9,9 +9,9 @@ package org.osgl.xls;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -35,8 +35,22 @@ import osgl.version.Version;
 import java.io.*;
 import java.net.URL;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ExcelReader {
+
+    private static AtomicBoolean registered = new AtomicBoolean(false);
+
+    static {
+        register();
+    }
+
+    public static void register() {
+        if (!registered.get()) {
+            IO.registerInputStreamHandler(MimeType.Trait.excel, new ExcelInputStreamHandler());
+            registered.set(true);
+        }
+    }
 
     public static final Version VERSION = Version.of(ExcelReader.class);
 
@@ -64,16 +78,110 @@ public class ExcelReader {
         terminator = builder.terminator;
     }
 
+    public LinkedHashMap<String, List<Map<String, Object>>> readSheets() {
+        final LinkedHashMap<String, List<Map<String, Object>>> retVal = new LinkedHashMap<>();
+        final Workbook wb = loadWorkbook();
+        try {
+            Map<String, PropertySetter> setterMap = processSchemaMapping(Map.class);
+            if (setterMap.isEmpty() && tolerantLevel.isStrict()) {
+                throw new ExcelReadException("No schema mapping found in strict mode");
+            }
+            for (Sheet sheet : wb) {
+                if (!sheetSelector.test(sheet)) {
+                    continue;
+                }
+                List<Map> sheetData = new ArrayList<>();
+                read(sheet, sheetData, setterMap, Map.class);
+                retVal.put(sheet.getSheetName(), (List) sheetData);
+            }
+        } finally {
+            IO.close(wb);
+        }
+        return retVal;
+    }
+
+    public <T> LinkedHashMap<String, List<T>> readSheets(Class<T> pojoType) {
+        final LinkedHashMap<String, List<T>> retVal = new LinkedHashMap<>();
+        final Workbook wb = loadWorkbook();
+        try {
+            Map<String, PropertySetter> setterMap = processSchemaMapping(pojoType);
+            if (setterMap.isEmpty() && tolerantLevel.isStrict()) {
+                throw new ExcelReadException("No schema mapping found in strict mode");
+            }
+            for (Sheet sheet : wb) {
+                if (!sheetSelector.test(sheet)) {
+                    continue;
+                }
+                List<T> sheetData = new ArrayList<>();
+                read(sheet, sheetData, setterMap, pojoType);
+                retVal.put(sheet.getSheetName(), (List) sheetData);
+            }
+        } finally {
+            IO.close(wb);
+        }
+        return retVal;
+    }
+
+    public List<Map<String, Object>> readSheet(String sheetName) {
+        final Workbook wb = loadWorkbook();
+        try {
+            Map<String, PropertySetter> setterMap = processSchemaMapping(Map.class);
+            if (setterMap.isEmpty() && tolerantLevel.isStrict()) {
+                throw new ExcelReadException("No schema mapping found in strict mode");
+            }
+            for (Sheet sheet : wb) {
+                if (!sheetName.equalsIgnoreCase(sheet.getSheetName())) {
+                    continue;
+                }
+                List<Map> sheetData = new ArrayList<>();
+                read(sheet, sheetData, setterMap, Map.class);
+                return (List) sheetData;
+            }
+        } finally {
+            IO.close(wb);
+        }
+        return C.list();
+    }
+
+    public List<Map<String, Object>> readSheet(int sheetId) {
+        final Workbook wb = loadWorkbook();
+        try {
+            Map<String, PropertySetter> setterMap = processSchemaMapping(Map.class);
+            if (setterMap.isEmpty() && tolerantLevel.isStrict()) {
+                throw new ExcelReadException("No schema mapping found in strict mode");
+            }
+            Sheet sheet = wb.getSheetAt(sheetId);
+            List<Map> sheetData = new ArrayList<>();
+            read(sheet, sheetData, setterMap, Map.class);
+            return (List) sheetData;
+        } finally {
+            IO.close(wb);
+        }
+    }
+
+    public List<Map<String, Object>> readFirstVisibleTab() {
+        final Workbook wb = loadWorkbook();
+        try {
+            Map<String, PropertySetter> setterMap = processSchemaMapping(Map.class);
+            if (setterMap.isEmpty() && tolerantLevel.isStrict()) {
+                throw new ExcelReadException("No schema mapping found in strict mode");
+            }
+            Sheet sheet = wb.getSheetAt(wb.getFirstVisibleTab());
+            List<Map> sheetData = new ArrayList<>();
+            read(sheet, sheetData, setterMap, Map.class);
+            return (List) sheetData;
+        } finally {
+            IO.close(wb);
+        }
+    }
+
     public List<Map<String, Object>> read() {
         return (List) read(Map.class);
     }
 
     public <TYPE> List<TYPE> read(Class<? extends TYPE> schema) {
         final List<TYPE> dataList = new ArrayList<>();
-        long now = $.ms();
         final Workbook wb = loadWorkbook();
-        long time = $.ms() - now;
-        LOGGER.trace("it takes %sms to load the workbook", time);
         try {
             Map<String, PropertySetter> setterMap = processSchemaMapping(schema);
             if (setterMap.isEmpty() && tolerantLevel.isStrict()) {
@@ -262,11 +370,17 @@ public class ExcelReader {
     }
 
     private Workbook loadWorkbook() {
+        long now = LOGGER.isTraceEnabled() ? $.ms() : 0;
         InputStream is = inputStreamProvider.apply();
         try {
             return isXlsx ? new XSSFWorkbook(is) : new HSSFWorkbook(is);
         } catch (IOException e) {
             throw E.ioException(e);
+        } finally {
+            if (LOGGER.isTraceEnabled()) {
+                long time = $.ms() - now;
+                LOGGER.trace("it takes %sms to load the workbook", time);
+            }
         }
     }
 
@@ -344,11 +458,16 @@ public class ExcelReader {
      * A quick API for reading an excel file and return a {@link List list} of {@link Map maps}
      * where each map corresponding to an excel sheet row
      *
-     * @param file the excel source file
+     * @param file
+     *         the excel source file
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(File file) {
         return builder().file(file).build().read();
+    }
+
+    public static LinkedHashMap<String, List<Map<String, Object>>> readSheets(File file) {
+        return builder().file(file).build().readSheets();
     }
 
     /**
@@ -358,8 +477,10 @@ public class ExcelReader {
      * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the header string into map key, e.g. `姓名` to `name`
      *
-     * @param file          the excel source file
-     * @param headerMapping a string-string map that defines caption to map key transform
+     * @param file
+     *         the excel source file
+     * @param headerMapping
+     *         a string-string map that defines caption to map key transform
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(File file, Map<String, String> headerMapping) {
@@ -371,8 +492,10 @@ public class ExcelReader {
      * instances where the type is specified by `schema` parameter, where each pojo
      * instance is corresponding to an excel sheet row
      *
-     * @param file   the excel source file
-     * @param schema specify the POJO object type
+     * @param file
+     *         the excel source file
+     * @param schema
+     *         specify the POJO object type
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(File file, Class<T> schema) {
@@ -387,9 +510,12 @@ public class ExcelReader {
      * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the header string into map key, e.g. `姓名` to `name`
      *
-     * @param file          the excel source file
-     * @param schema        specify the POJO object type
-     * @param headerMapping a string-string map that defines header to map key transform
+     * @param file
+     *         the excel source file
+     * @param schema
+     *         specify the POJO object type
+     * @param headerMapping
+     *         a string-string map that defines header to map key transform
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(File file, Class<T> schema, Map<String, String> headerMapping) {
@@ -402,7 +528,7 @@ public class ExcelReader {
      * where each map corresponding to an excel sheet row
      *
      * @param url
-     *      the URL points to an excel source file
+     *         the URL points to an excel source file
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(URL url) {
@@ -417,9 +543,9 @@ public class ExcelReader {
      * the header string into map key, e.g. `姓名` to `name`
      *
      * @param url
-     *      the URL points to an excel source file
+     *         the URL points to an excel source file
      * @param headerMapping
-     *      a string-string map that defines caption to map key transform
+     *         a string-string map that defines caption to map key transform
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(URL url, Map<String, String> headerMapping) {
@@ -432,9 +558,9 @@ public class ExcelReader {
      * instance is corresponding to an excel sheet row
      *
      * @param url
-     *      the URL points to an excel source file
+     *         the URL points to an excel source file
      * @param schema
-     *      specify the POJO object type
+     *         specify the POJO object type
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(URL url, Class<T> schema) {
@@ -450,11 +576,11 @@ public class ExcelReader {
      * the header string into map key, e.g. `姓名` to `name`
      *
      * @param url
-     *      the URL points to an excel source file
+     *         the URL points to an excel source file
      * @param schema
-     *      specify the POJO object type
+     *         specify the POJO object type
      * @param headerMapping
-     *      a string-string map that defines header to map key transform
+     *         a string-string map that defines header to map key transform
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(URL url, Class<T> schema, Map<String, String> headerMapping) {
@@ -465,7 +591,8 @@ public class ExcelReader {
      * A quick API for reading an excel inputStream and return a {@link List list} of {@link Map maps}
      * where each map corresponding to an excel sheet row
      *
-     * @param inputStream the excel source inputStream
+     * @param inputStream
+     *         the excel source inputStream
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(InputStream inputStream) {
@@ -479,8 +606,10 @@ public class ExcelReader {
      * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the header string into map key, e.g. `姓名` to `name`
      *
-     * @param inputStream   the excel source inputStream
-     * @param headerMapping a string-string map that defines header to map key transform
+     * @param inputStream
+     *         the excel source inputStream
+     * @param headerMapping
+     *         a string-string map that defines header to map key transform
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(InputStream inputStream, Map<String, String> headerMapping) {
@@ -492,8 +621,10 @@ public class ExcelReader {
      * instances where the type is specified by `schema` parameter, where each pojo
      * instance is corresponding to an excel sheet row
      *
-     * @param inputStream the excel source inputStream
-     * @param schema      specify the POJO object type
+     * @param inputStream
+     *         the excel source inputStream
+     * @param schema
+     *         specify the POJO object type
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(InputStream inputStream, Class<T> schema) {
@@ -508,9 +639,12 @@ public class ExcelReader {
      * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the header string into map key, e.g. `姓名` to `name`
      *
-     * @param inputStream   the excel source inputStream
-     * @param schema        specify the POJO object type
-     * @param headerMapping a string-string map that defines caption to map key transform
+     * @param inputStream
+     *         the excel source inputStream
+     * @param schema
+     *         specify the POJO object type
+     * @param headerMapping
+     *         a string-string map that defines caption to map key transform
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(InputStream inputStream, Class<T> schema, Map<String, String> headerMapping) {
@@ -522,7 +656,8 @@ public class ExcelReader {
      * A quick API for reading an excel sobj and return a {@link List list} of {@link Map maps}
      * where each map corresponding to an excel sheet row
      *
-     * @param sobj the excel source sobj
+     * @param sobj
+     *         the excel source sobj
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(ISObject sobj) {
@@ -536,8 +671,10 @@ public class ExcelReader {
      * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the caption string into map key, e.g. `姓名` to `name`
      *
-     * @param sobj          the excel source sobj
-     * @param headerMapping a string-string map that defines caption to map key transform
+     * @param sobj
+     *         the excel source sobj
+     * @param headerMapping
+     *         a string-string map that defines caption to map key transform
      * @return the map list as described above
      */
     public static List<Map<String, Object>> read(ISObject sobj, Map<String, String> headerMapping) {
@@ -549,8 +686,10 @@ public class ExcelReader {
      * instances where the type is specified by `schema` parameter, where each pojo
      * instance is corresponding to an excel sheet row
      *
-     * @param sobj   the excel source sobj
-     * @param schema specify the POJO object type
+     * @param sobj
+     *         the excel source sobj
+     * @param schema
+     *         specify the POJO object type
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(ISObject sobj, Class<T> schema) {
@@ -565,9 +704,12 @@ public class ExcelReader {
      * A `headerMapping` {@link Map map} is provided to allow developer to translate
      * the caption string into map key, e.g. `姓名` to `name`
      *
-     * @param sobj          the excel source sobj
-     * @param schema        specify the POJO object type
-     * @param headerMapping a string-string map that defines caption to map key transform
+     * @param sobj
+     *         the excel source sobj
+     * @param schema
+     *         specify the POJO object type
+     * @param headerMapping
+     *         a string-string map that defines caption to map key transform
      * @return the pojo object list as described above
      */
     public static <T> List<T> read(ISObject sobj, Class<T> schema, Map<String, String> headerMapping) {
@@ -620,7 +762,7 @@ public class ExcelReader {
         private $.Predicate<Sheet> sheetSelector = SheetSelector.ALL;
         // map table header caption to object schema
         private Map<String, String> headerMapping = new HashMap<>();
-        private boolean isXlsx = false;
+        private Boolean isXlsx = false;
         private int headerRow = 0;
         private boolean ignoreEmptyRows = true;
         private $.Function<String, String> headerTransformer = HeaderTransformStrategy.TO_JAVA_NAME;
@@ -652,7 +794,9 @@ public class ExcelReader {
                     path = "/" + path;
                 }
                 url = ExcelReader.class.getResource(path);
-                throw E.ioException("Resource not found: " + path);
+                if (null == url) {
+                    throw E.ioException("Resource not found: " + path);
+                }
             }
             return url(url);
         }
@@ -748,6 +892,12 @@ public class ExcelReader {
             return sobject(sobj, isXlsx);
         }
 
+        public Builder mimeType(MimeType mimeType) {
+            String fileExtension = mimeType.fileExtension();
+            isXlsx = fileExtension.startsWith("xl") && fileExtension.length() == 4;
+            return this;
+        }
+
         public Builder sobject(final ISObject sobj, boolean isXlsx) {
             this.isXlsx = isXlsx;
             inputStreamProvider = new $.F0<InputStream>() {
@@ -784,9 +934,18 @@ public class ExcelReader {
         }
 
         public Builder inputStream(final InputStream is) {
+            if (null != isXlsx) {
+                inputStreamProvider = new $.F0<InputStream>() {
+                    @Override
+                    public InputStream apply() throws NotAppliedException, $.Break {
+                        return is;
+                    }
+                };
+                return this;
+            }
             InputStream probeStream = pushbackInputStream(is);
             try {
-                return inputStream(probeStream,  FileMagic.valueOf(probeStream) == FileMagic.OOXML);
+                return inputStream(probeStream, FileMagic.valueOf(probeStream) == FileMagic.OOXML);
             } catch (IOException e) {
                 throw E.ioException(e);
             }

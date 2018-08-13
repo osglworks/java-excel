@@ -20,6 +20,9 @@ package org.osgl.xls;
  * #L%
  */
 
+import org.osgl.util.N;
+import org.osgl.util.S;
+
 public class Address {
     private String unitNo;
     private String streetNo;
@@ -74,5 +77,16 @@ public class Address {
 
     public void setPostCode(String postCode) {
         this.postCode = postCode;
+    }
+
+    public static Address random() {
+        Address address = new Address();
+        address.setPostCode(S.string(N.randInt(8999) + 1000));
+        address.setState(S.random(3) + 1);
+        address.setStreet(S.random(N.randInt(20) + 10) );
+        address.setSuburb(S.random(N.randInt(8) + 5));
+        address.setStreetNo(S.string(N.randInt(100)));
+        address.setUnitNo(S.string(N.randInt(10)));
+        return address;
     }
 }

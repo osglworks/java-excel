@@ -26,8 +26,8 @@ import osgl.ut.TestBase;
 public class VersionTest extends TestBase {
 
     @Test
-    public void versionShallContainsExcelReader() {
-        yes(ExcelReader.VERSION.toString().contains("excel-reader"));
+    public void versionShallContainsExcel() {
+        yes(ExcelReader.VERSION.toString().contains("osgl-excel"));
     }
 
 }

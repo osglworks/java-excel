@@ -1,6 +1,10 @@
-# act-excel CHANGE LOG
+# osgl-excel CHANGE LOG
 
-1.4.1
+1.5.0
+* Support writing to Excel #11
+* Rename to osgl-excel #10
+* `ExcelReader`: read sheets into Map indexed by sheet name #8
+* Plugin Excel reading into `IO.read` framework #9
 * error while reading multiple empty rows separated by data #7
 * update to osgl-tool-1.18.0
 

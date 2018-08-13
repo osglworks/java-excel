@@ -20,17 +20,16 @@ package org.osgl.xls;
  * #L%
  */
 
+import org.junit.Before;
 import org.junit.Test;
-import org.osgl.util.E;
+import org.osgl.util.*;
 import osgl.ut.TestBase;
 
 import java.io.File;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ExcelReaderTest extends TestBase {
 
@@ -42,9 +41,24 @@ public class ExcelReaderTest extends TestBase {
         return new File(sampleUrl().getFile());
     }
 
+    @Before
+    public void prepare() {
+        ExcelReader.register();
+    }
+
     @Test
     public void testReadIntoMap() {
         List<Map<String, Object>> data = ExcelReader.read(sampleFile());
+        verify(data);
+    }
+
+    @Test
+    public void testIOReadIntoMap() {
+        List<Map<String, Object>> data = IO.read(sampleFile()).to(List.class);
+        verify(data);
+    }
+
+    private void verify(List<Map<String, Object>> data) {
         eq(2, data.size());
         Map<String, Object> s1 = data.get(0);
         eq("张", s1.get("姓"));
@@ -52,6 +66,26 @@ public class ExcelReaderTest extends TestBase {
         Map<String, Object> s2 = data.get(1);
         eq("John", s2.get("firstName"));
         eq("Premier St", s2.get("street"));
+    }
+
+    @Test
+    public void testReadSheetsIntoMap() {
+        Map<String, List<Map<String, Object>>> data = ExcelReader.readSheets(sampleFile());
+        verify(data);
+    }
+
+    @Test
+    public void testIOReadSheetsIntoMap() {
+        Map<String, List<Map<String, Object>>> data = IO.read(sampleFile()).to(Map.class);
+        verify(data);
+    }
+
+    private void verify(Map<String, List<Map<String, Object>>> data) {
+        eq(3, data.size());
+        List<Map<String, Object>> sheetData = data.get("Cover Page");
+        yes(sheetData.isEmpty());
+        sheetData = data.get("中国学生");
+        eq(1, sheetData.size());
     }
 
     @Test
@@ -95,6 +129,35 @@ public class ExcelReaderTest extends TestBase {
                 .file(sampleFile())
                 .build();
         List<Student> data = reader.read(Student.class);
+        eq(2, data.size());
+
+        Student s0 = data.get(0);
+        eq("三", s0.getFirstName());
+        eq(Student.Grade.g1, s0.getGrade());
+        eq(Student.Country.CHINA, s0.getCountry());
+        eq(dobOfZhang(), s0.getDob());
+
+        Student s1 = data.get(1);
+        eq("John", s1.getFirstName());
+        eq(Student.Grade.g1, s1.getGrade());
+        eq(Student.Country.AUSTRALIA, s1.getCountry());
+        eq(dobOfJohn(), s1.getDob());
+    }
+
+
+    @Test
+    public void testIOReadIntoPojoWithSchemaTransform() {
+        ExcelReader.Builder builder = ExcelReader.builder()
+                .map("姓").to("lastName")
+                .map("名").to("firstName")
+                .map("ID").to("no")
+                .map("学号").to("no")
+                .map("出生日期").to("dob")
+                .map("年级").to("grade")
+                .map("国家").to("country")
+                .map("邮编").to("postCode");
+
+        List<Student> data = IO.read(sampleFile()).hint(builder).to(new TypeReference<List<Student>>(){});
         eq(2, data.size());
 
         Student s0 = data.get(0);
