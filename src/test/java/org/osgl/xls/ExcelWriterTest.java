@@ -50,9 +50,9 @@ public class ExcelWriterTest extends TestBase {
         ExcelWriter writer = ExcelWriter.builder()
                 .dateFormat("dd/MMM/yyyy")
                 .headerTransformer(S.F.dropHeadIfStartsWith("address."))
+                .filter("-address,+address.postCode")
                 .build();
         writer.write(students, targetFile);
-        System.out.println("write to " + targetFile);
     }
 
 }

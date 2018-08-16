@@ -119,6 +119,14 @@ public class ExcelWriter {
     }
 
     private Set<String> extractHeaders(List<Map<String, Object>> data) {
+        if (S.notBlank(filter)) {
+            List<String> list = S.fastSplit(filter, ",");
+            if (!list.get(0).startsWith("-")) {
+                Set<String> headers = new LinkedHashSet<>();
+                headers.addAll(list);
+                return headers;
+            }
+        }
         Set<String> headers = new LinkedHashSet<>();
         for (Map<String, Object> line : data) {
             if (null == line || line.isEmpty()) {

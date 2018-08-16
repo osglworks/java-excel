@@ -33,7 +33,7 @@ public class Student {
     }
 
     public enum Grade {
-        g1, g2, g3;
+        g1, g2, g3
     }
 
     private int no;
