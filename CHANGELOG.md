@@ -1,6 +1,7 @@
 # osgl-excel CHANGE LOG
 
 1.5.0
+* When writing `Map` delegate to `writeSheets` function #13
 * When white list filter specified, it shall follow the order defined in the filter to output data #12
 * Support writing to Excel #11
 * Rename to osgl-excel #10

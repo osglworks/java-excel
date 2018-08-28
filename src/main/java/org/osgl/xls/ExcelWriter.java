@@ -68,12 +68,24 @@ public class ExcelWriter {
     }
 
     public void write(Object data, OutputStream os) {
-        writeSheet("sheet1", data, os);
+        if (data instanceof Map) {
+            writeSheets((Map<String, Object>) data, os);
+        } else {
+            writeSheet("sheet1", data, os);
+        }
+    }
+
+    public void writeSheets(Map<String, Object> data, File file) {
+        write(data, IO.outputStream(file));
     }
 
     public void write(Object data, File file) {
-        isXlsx = file.getName().endsWith(".xlsx");
-        write(data, IO.outputStream(file));
+        if (data instanceof Map) {
+            writeSheets((Map<String, Object>) data, file);
+        } else {
+            isXlsx = file.getName().endsWith(".xlsx");
+            write(data, IO.outputStream(file));
+        }
     }
 
     public void writeSheet(String sheetName, Object data, OutputStream os) {
@@ -207,6 +219,7 @@ public class ExcelWriter {
     }
 
     private void buildColIndex(Collection<String> keys, C.Map<String, Integer> colIndex) {
+        maxColId.set(0);
         for (String key : keys) {
             if (colIndex.containsKey(key)) {
                 continue;
