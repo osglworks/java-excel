@@ -49,11 +49,14 @@ public class ExcelWriter {
     private CellStyle dateStyle;
     private CellStyle intStyle;
     private CellStyle doubleStyle;
+    private Map<String, String> fieldStylePatterns;
+    private Map<Keyword, CellStyle> fieldStyles;
 
-    public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping, $.Function<String, String> headerTransformer, String filter) {
+    public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping, Map<String, String> fieldStylePatterns, $.Function<String, String> headerTransformer, String filter) {
         this.isXlsx = isXlsx;
         this.dateFormat = dateFormat;
         this.headerMapping = headerMapping;
+        this.fieldStylePatterns = null == fieldStylePatterns ? C.<String, String>Map() : fieldStylePatterns;
         this.filter = filter;
         this.headerTransformer = headerTransformer;
     }
@@ -172,26 +175,31 @@ public class ExcelWriter {
     private void createDataRow(Sheet sheet, C.Map<String, Integer> colIndex, Map<String, Object> data, AtomicInteger rowId) {
         Row row = sheet.createRow(rowId.getAndIncrement());
         for (Map.Entry<String, Object> cellData : data.entrySet()) {
-            int cellId = colIndex.get(cellData.getKey());
+            String key = cellData.getKey();
+            int cellId = colIndex.get(key);
             Cell cell = row.createCell(cellId);
+            CellStyle style = fieldStyles.get(Keyword.of(key));
             Object val = cellData.getValue();
             if (val instanceof Boolean) {
                 cell.setCellValue((Boolean) val);
             } else if (val instanceof Date) {
                 cell.setCellValue((Date) val);
-                cell.setCellStyle(dateStyle);
+                cell.setCellStyle(null == style ? dateStyle : style);
             } else if (val instanceof Calendar) {
                 cell.setCellValue((Calendar) val);
-                cell.setCellStyle(dateStyle);
+                cell.setCellStyle(null == style ? dateStyle : style);
             } else if (val instanceof Number) {
                 cell.setCellValue(((Number) val).doubleValue());
                 if (val instanceof Double || val instanceof Float || val instanceof BigDecimal) {
-                    cell.setCellStyle(doubleStyle);
+                    cell.setCellStyle(null == style ? doubleStyle : style);
                 } else {
-                    cell.setCellStyle(intStyle);
+                    cell.setCellStyle(null == style ? intStyle : style);
                 }
             } else {
                 cell.setCellValue(S.string(val));
+                if (null != style) {
+                    cell.setCellStyle(style);
+                }
             }
         }
     }
@@ -247,13 +255,24 @@ public class ExcelWriter {
         intStyle.setDataFormat(createHelper.createDataFormat().getFormat("0"));
         doubleStyle = workbook.createCellStyle();
         doubleStyle.setDataFormat(createHelper.createDataFormat().getFormat("0.00"));
+        if (null == fieldStylePatterns || fieldStylePatterns.isEmpty()) {
+            fieldStyles = C.Map();
+        } else {
+            fieldStyles = new HashMap<>();
+            for (Map.Entry<String, String> entry : fieldStylePatterns.entrySet()) {
+                CellStyle style = workbook.createCellStyle();
+                style.setDataFormat(createHelper.createDataFormat().getFormat(entry.getValue()));
+                fieldStyles.put(Keyword.of(entry.getKey()), style);
+            }
+        }
         return workbook;
     }
 
     public static class Builder {
         private boolean isXlsx;
         private String dateFormat;
-        private Map<String, String> headerMapping;
+        private Map<String, String> headerMapping = new HashMap<>();
+        private Map<String, String> fieldStylePatterns = new HashMap<>();
         private String filter;
         private $.Function<String, String> headerTransformer;
 
@@ -272,18 +291,33 @@ public class ExcelWriter {
             return this;
         }
 
+        public Builder fieldStylePatterns(Map<String, String> patterns) {
+            this.fieldStylePatterns.putAll(patterns);
+            return this;
+        }
+
+        public Builder fieldStylePattern(String fieldName, String style) {
+            this.fieldStylePatterns.put(fieldName, style);
+            return this;
+        }
+
         public Builder headerTransformer($.Function<String, String> headerTransformer) {
             this.headerTransformer = headerTransformer;
             return this;
         }
 
         public Builder headerMap(Map<String, String> headerMap) {
-            this.headerMapping = headerMap;
+            this.headerMapping.putAll(headerMap);
+            return this;
+        }
+
+        public Builder mapHeader(String fieldName, String header) {
+            this.headerMapping.put(fieldName, header);
             return this;
         }
 
         public ExcelWriter build() {
-            return new ExcelWriter(isXlsx, dateFormat, headerMapping, headerTransformer, filter);
+            return new ExcelWriter(isXlsx, dateFormat, headerMapping, fieldStylePatterns, headerTransformer, filter);
         }
     }
 
