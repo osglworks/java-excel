@@ -20,7 +20,6 @@ package org.osgl.xls;
  * #L%
  */
 
-import org.junit.Before;
 import org.junit.Test;
 import org.osgl.util.*;
 import osgl.ut.TestBase;
@@ -37,24 +36,19 @@ public class ExcelReaderTest extends TestBase {
         return ExcelReaderTest.class.getResource("/students.xlsx");
     }
 
-    private File sampleFile() {
-        return new File(sampleUrl().getFile());
+    @Test
+    public void testOsglIO_integration() {
+        List<Map<String, Object>> data = IO.read(sampleUrl()).to(List.class);
+        verify(data);
     }
 
-    @Before
-    public void prepare() {
-        ExcelReader.register();
+    private File sampleFile() {
+        return new File(sampleUrl().getFile());
     }
 
     @Test
     public void testReadIntoMap() {
         List<Map<String, Object>> data = ExcelReader.read(sampleFile());
-        verify(data);
-    }
-
-    @Test
-    public void testIOReadIntoMap() {
-        List<Map<String, Object>> data = IO.read(sampleFile()).to(List.class);
         verify(data);
     }
 

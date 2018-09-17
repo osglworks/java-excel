@@ -1,6 +1,7 @@
 # osgl-excel CHANGE LOG
 
 1.5.0
+* Add osgl.ext.list file for IO integration
 * Support write big data to Excel file #15
 * Support specify cell data format by header name #14
 * When writing `Map` delegate to `writeSheets` function #13
