@@ -42,6 +42,7 @@
     <scm.url>git@github.com:osglworks/java-excel-reader.git</scm.url>
 
     <osgl-tool.version>1.18.0-SNAPSHOT</osgl-tool.version>
+    <osgl-csv.version>1.0.0-SNAPSHOT</osgl-csv.version>
     <osgl-logging.version>1.2.0</osgl-logging.version>
     <osgl-storage.version>1.7.0</osgl-storage.version>
 
@@ -61,6 +62,12 @@
       <groupId>org.osgl</groupId>
       <artifactId>osgl-tool</artifactId>
       <version>${osgl-tool.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.osgl</groupId>
+      <artifactId>osgl-csv</artifactId>
+      <version>${osgl-csv.version}</version>
     </dependency>
 
     <dependency>

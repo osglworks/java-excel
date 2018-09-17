@@ -51,6 +51,7 @@ public class ExcelWriterTest extends TestBase {
                 .dateFormat("dd/MMM/yyyy")
                 .headerTransformer(S.F.dropHeadIfStartsWith("address."))
                 .filter("-address,+address.postCode")
+                .bigData()
                 .build();
         writer.write(students, targetFile);
     }

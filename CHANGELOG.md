@@ -1,6 +1,7 @@
 # osgl-excel CHANGE LOG
 
 1.5.0
+* Support write big data to Excel file #15
 * Support specify cell data format by header name #14
 * When writing `Map` delegate to `writeSheets` function #13
 * When white list filter specified, it shall follow the order defined in the filter to output data #12

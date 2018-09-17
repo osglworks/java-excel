@@ -22,6 +22,7 @@ package org.osgl.xls;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.osgl.$;
 import org.osgl.logging.LogManager;
@@ -51,14 +52,16 @@ public class ExcelWriter {
     private CellStyle doubleStyle;
     private Map<String, String> fieldStylePatterns;
     private Map<Keyword, CellStyle> fieldStyles;
+    private boolean bigData;
 
-    public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping, Map<String, String> fieldStylePatterns, $.Function<String, String> headerTransformer, String filter) {
+    public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping, Map<String, String> fieldStylePatterns, $.Function<String, String> headerTransformer, String filter, boolean bigData) {
         this.isXlsx = isXlsx;
         this.dateFormat = dateFormat;
         this.headerMapping = headerMapping;
         this.fieldStylePatterns = null == fieldStylePatterns ? C.<String, String>Map() : fieldStylePatterns;
         this.filter = filter;
         this.headerTransformer = headerTransformer;
+        this.bigData = bigData;
     }
 
     public void writeSheets(Map<String, Object> data, OutputStream os) {
@@ -129,7 +132,9 @@ public class ExcelWriter {
         }
         int max = maxColId.get();
         for (int i = 0; i < max; ++i) {
-            sheet.autoSizeColumn(i);
+            if (!isXlsx || !bigData) {
+                sheet.autoSizeColumn(i);
+            }
         }
     }
 
@@ -242,12 +247,15 @@ public class ExcelWriter {
         } catch (IOException e) {
             throw E.ioException(e);
         } finally {
+            if (workbook instanceof SXSSFWorkbook) {
+                ((SXSSFWorkbook) workbook).dispose();
+            }
             IO.close(os);
         }
     }
 
     private Workbook newWorkbook() {
-        Workbook workbook = isXlsx ? new XSSFWorkbook() : new HSSFWorkbook();
+        Workbook workbook = isXlsx ? (bigData ? new SXSSFWorkbook() : new XSSFWorkbook()) : new HSSFWorkbook();
         CreationHelper createHelper = workbook.getCreationHelper();
         dateStyle = workbook.createCellStyle();
         dateStyle.setDataFormat(createHelper.createDataFormat().getFormat(dateFormat));
@@ -274,6 +282,7 @@ public class ExcelWriter {
         private Map<String, String> headerMapping = new HashMap<>();
         private Map<String, String> fieldStylePatterns = new HashMap<>();
         private String filter;
+        private boolean bigData;
         private $.Function<String, String> headerTransformer;
 
         public Builder asXlsx() {
@@ -288,6 +297,11 @@ public class ExcelWriter {
 
         public Builder dateFormat(String dateFormat) {
             this.dateFormat = dateFormat;
+            return this;
+        }
+
+        public Builder bigData() {
+            this.bigData = bigData;
             return this;
         }
 
@@ -317,7 +331,7 @@ public class ExcelWriter {
         }
 
         public ExcelWriter build() {
-            return new ExcelWriter(isXlsx, dateFormat, headerMapping, fieldStylePatterns, headerTransformer, filter);
+            return new ExcelWriter(isXlsx, dateFormat, headerMapping, fieldStylePatterns, headerTransformer, filter, bigData);
         }
     }
 

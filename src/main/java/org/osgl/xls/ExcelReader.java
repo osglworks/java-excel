@@ -917,7 +917,7 @@ public class ExcelReader {
                 xlsx = false;
             }
             if (null == xlsx) {
-                return inputStream(IO.is(ExcelReader.class.getResource(url)));
+                return inputStream(IO.inputStream(ExcelReader.class.getResource(url)));
             }
             return classResource(url, xlsx);
         }
@@ -927,7 +927,7 @@ public class ExcelReader {
             inputStreamProvider = new $.F0<InputStream>() {
                 @Override
                 public InputStream apply() throws NotAppliedException, $.Break {
-                    return IO.is(ExcelReader.class.getResource(url));
+                    return IO.inputStream(ExcelReader.class.getResource(url));
                 }
             };
             return this;
