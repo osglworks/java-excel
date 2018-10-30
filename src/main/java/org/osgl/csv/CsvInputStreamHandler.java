@@ -60,14 +60,14 @@ public class CsvInputStreamHandler implements IO.InputStreamHandler {
     @Override
     public <T> T read(InputStream inputStream, Type type, MimeType mimeType, Object hint) {
         List<String> lines = IO.readLines(inputStream);
-        List<LinkedHashMap<String, String>> temp = parse(lines);
+        List<Map<String, String>> temp = parse(lines);
         if (directTypeLookup.containsKey(type)) {
             return (T) temp;
         }
         $.Pair<Class, Class> containerElement = parseType(type);
         $._MappingStage stage = $.map(temp).targetGenericType(type);
         if (hint instanceof Map) {
-            stage.map((Map) hint);
+            stage.withHeadMapping((Map) hint);
         }
         return (T) stage.to(containerElement.first());
     }

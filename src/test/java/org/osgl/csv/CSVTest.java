@@ -20,6 +20,7 @@ package org.osgl.csv;
  * #L%
  */
 
+import com.alibaba.fastjson.JSONObject;
 import org.junit.Test;
 import org.osgl.util.C;
 import osgl.ut.TestBase;
@@ -92,10 +93,10 @@ public class CSVTest extends TestBase {
         List<String> lines = new ArrayList<>();
         lines.add("no,code,country");
         lines.add("10,AU,Australia");
-        List<LinkedHashMap<String, String>> data = CsvParser.parse(lines);
+        List<Map<String, String>> data = CsvParser.parse(lines);
         notNull(data);
         eq(1, data.size());
-        LinkedHashMap<String, String> row = data.get(0);
+        Map<String, String> row = data.get(0);
         eq("10", row.get("no"));
         eq("AU", row.get("code"));
         eq("Australia", row.get("country"));
@@ -112,5 +113,16 @@ public class CSVTest extends TestBase {
         eq(10, country.no);
         eq("AU", country.code);
         eq("Australia", country.name);
+    }
+
+    @Test
+    public void testParseIntoJSONObject() {
+        List<String> lines = new ArrayList<>();
+        lines.add("no,code,country");
+        lines.add("10,AU,Australia");
+        List<JSONObject> list = CsvParser.parse(lines, JSONObject.class, C.<String, String>Map("country", "name"));
+        eq(1, list.size());
+        JSONObject json = list.get(0);
+        eq("10", json.get("no"));
     }
 }

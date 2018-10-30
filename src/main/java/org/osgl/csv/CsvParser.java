@@ -21,8 +21,7 @@ package org.osgl.csv;
  */
 
 import org.osgl.$;
-import org.osgl.util.IO;
-import org.osgl.util.MimeType;
+import org.osgl.util.*;
 
 import java.util.*;
 
@@ -55,20 +54,44 @@ public class CsvParser {
      *      the csv lines
      * @return a list of LinkedHashMap
      */
-    public static List<LinkedHashMap<String, String>> parse(List<String> lines) {
-        int totalLines = lines.size();
-        if (1 >= totalLines) {
+    public static List<Map<String, String>> parse(List<String> lines) {
+        if (lines.isEmpty()) {
             return new ArrayList<>();
         }
-        List<String> headerLine = parseLine(lines.get(0));
-        int columnCnt = headerLine.size();
+        String headerLine = lines.remove(0);
+        return parse(headerLine, lines);
+    }
+
+    /**
+     * Parse a list of lines into list of LinkedHashMap.
+     *
+     * **Note** the line list must not contains header line
+     *
+     * @param headerLine
+     *      the header line
+     * @param lines
+     *      the csv lines
+     * @return a list of LinkedHashMap
+     */
+    public static List<Map<String, String>> parse(String headerLine, List<String> lines) {
+        int totalLines = lines.size();
+        if (0 >= totalLines) {
+            return new ArrayList<>();
+        }
+        List<String> headers = parseLine(headerLine);
+        int columnCnt = headers.size();
         String[] headerLookup = new String[columnCnt];
-        headerLookup = headerLine.toArray(headerLookup);
-        List<LinkedHashMap<String, String>> retVal = new ArrayList<>();
-        for (int i = 1; i < totalLines; ++i) {
+        headerLookup = headers.toArray(headerLookup);
+        List<Map<String, String>> retVal = new ArrayList<>();
+        for (int i = 0; i < totalLines; ++i) {
             retVal.add(buildRecord(columnCnt, headerLookup, parseLine(lines.get(i))));
         }
         return retVal;
+    }
+
+    public static Map<String, String> parseDataLine(String headerLine, String dataLine) {
+        List<Map<String, String>> list = parse(headerLine, C.list(dataLine));
+        return list.get(0);
     }
 
     /**
@@ -89,6 +112,27 @@ public class CsvParser {
     /**
      * Parse a list of lines into list of recordType specified.
      *
+     * **Note** the line list must not contains header line
+     *
+     * @param header
+     *      the header line
+     * @param lines
+     *      the csv lines
+     * @param recordType
+     *      the record type
+     * @return a list of record type
+     */
+    public static <T> List<T> parse(String header, List<String> lines, Class<T> recordType) {
+        return parse(header, lines, recordType, null);
+    }
+
+    public static <T> T parseDataLine(String header, String dataLine, Class<T> recordType) {
+        return parseDataLine(header, dataLine, recordType, null);
+    }
+
+    /**
+     * Parse a list of lines into list of recordType specified.
+     *
      * **Note** the first line must be the header line
      *
      * @param lines
@@ -100,19 +144,42 @@ public class CsvParser {
      * @return a list of record type
      */
     public static <T> List<T> parse(List<String> lines, Class<T> recordType, Map<String, String> headerMapping) {
-        int totalLines = lines.size();
-        if (1 >= totalLines) {
+        if (lines.isEmpty()) {
             return new ArrayList<>();
         }
-        List<String> headerLine = parseLine(lines.get(0));
+        String header = lines.remove(0);
+        return parse(header, lines, recordType, headerMapping);
+    }
+
+    /**
+     * Parse a list of lines into list of recordType specified.
+     *
+     * **Note** the line list must not contains header line
+     *
+     * @param header
+     *      the header line
+     * @param lines
+     *      the csv lines
+     * @param recordType
+     *      the record type
+     * @param headerMapping
+     *      the header mapping
+     * @return a list of record type
+     */
+    public static <T> List<T> parse(String header, List<String> lines, Class<T> recordType, Map<String, String> headerMapping) {
+        int totalLines = lines.size();
+        if (0 >= totalLines) {
+            return new ArrayList<>();
+        }
+        List<String> headerLine = parseLine(header);
         int columnCnt = headerLine.size();
         String[] headerLookup = new String[columnCnt];
         headerLookup = headerLine.toArray(headerLookup);
         List<T> retVal = new ArrayList<>();
-        for (int i = 1; i < totalLines; ++i) {
+        for (int i = 0; i < totalLines; ++i) {
             Map<String, String> row = buildRecord(columnCnt, headerLookup, parseLine(lines.get(i)));
             if (null != headerMapping) {
-                retVal.add($.map(row).map(headerMapping).to(recordType));
+                retVal.add($.map(row).withHeadMapping(headerMapping).to(recordType));
             } else {
                 retVal.add($.map(row).to(recordType));
             }
@@ -120,8 +187,20 @@ public class CsvParser {
         return retVal;
     }
 
+    public static <T> T parseDataLine(String header, String line, Class<T> recordType, Map<String, String> headerMapping) {
+        List<String> headerLine = parseLine(header);
+        int columnCnt = headerLine.size();
+        String[] headerLookup = new String[columnCnt];
+        headerLookup = headerLine.toArray(headerLookup);
+        Map<String, String> row = buildRecord(columnCnt, headerLookup, parseLine(line));
+        return null != headerMapping ? $.map(row).withHeadMapping(headerMapping).to(recordType) : $.map(row).to(recordType);
+    }
+
     private static LinkedHashMap<String, String> buildRecord(int columnCnt, String[] headerLookup, List<String> row) {
         LinkedHashMap<String, String> record = new LinkedHashMap<>();
+        if (row.isEmpty()) {
+            return record;
+        }
         for (int i = 0; i < columnCnt; i++) {
             record.put(headerLookup[i], row.get(i));
         }
@@ -211,7 +290,7 @@ public class CsvParser {
 
         }
 
-        result.add(curVal.toString());
+        result.add(curVal.toString().trim());
 
         return result;
     }
