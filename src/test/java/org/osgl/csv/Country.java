@@ -1,10 +1,10 @@
-package org.osgl.xls;
+package org.osgl.csv;
 
 /*-
  * #%L
- * Java Excel Reader
+ * Java CSV Tool
  * %%
- * Copyright (C) 2017 OSGL (Open Source General Library)
+ * Copyright (C) 2018 OSGL (Open Source General Library)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,5 +20,8 @@ package org.osgl.xls;
  * #L%
  */
 
-public class StartColumnStrategy {
+public class Country {
+    public int no;
+    public String code;
+    public String name;
 }
