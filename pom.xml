@@ -20,7 +20,7 @@
 
   <artifactId>osgl-csv</artifactId>
   <packaging>jar</packaging>
-  <version>1.0.0</version>
+  <version>1.0.1-SNAPSHOT</version>
 
   <name>Java CSV Tool</name>
   <description>An easy to use and flexible CSV file reader/writer</description>
