@@ -1,5 +1,8 @@
 # osgl-excel CHANGE LOG
 
+1.6.0 - 19/Apr/2019
+* update to osgl-tool 1.19.2
+
 1.5.0 - 30/Oct/2018
 * Add osgl.ext.list file for IO integration
 * Support write big data to Excel file #15
