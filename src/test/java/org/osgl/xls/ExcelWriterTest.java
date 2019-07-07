@@ -52,6 +52,7 @@ public class ExcelWriterTest extends TestBase {
                 .headerTransformer(S.F.dropHeadIfStartsWith("address."))
                 .filter("-address,+address.postCode")
                 .bigData()
+                .sheetStyle("s4") // defined in sheet_style.properties file
                 .build();
         writer.write(students, targetFile);
     }

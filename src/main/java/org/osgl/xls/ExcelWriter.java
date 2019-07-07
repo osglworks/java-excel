@@ -9,9 +9,9 @@ package org.osgl.xls;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ package org.osgl.xls;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.osgl.$;
@@ -47,14 +48,27 @@ public class ExcelWriter {
     private AtomicInteger maxColId = new AtomicInteger();
     private String dateFormat;
     private String filter;
-    private CellStyle dateStyle;
-    private CellStyle intStyle;
-    private CellStyle doubleStyle;
     private Map<String, String> fieldStylePatterns;
-    private Map<Keyword, CellStyle> fieldStyles;
     private boolean bigData;
+    private boolean freezeTopRow = true;
+    private SheetStyle sheetStyle;
 
-    public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping, Map<String, String> fieldStylePatterns, $.Function<String, String> headerTransformer, String filter, boolean bigData) {
+    private CellStyle topRowStyle;
+    private CellStyle dataRowStyle;
+    private CellStyle alternateDataRowStyle;
+
+    private CellStyle dataRowIntStyle;
+    private CellStyle alternateDataRowIntStyle;
+
+    private CellStyle dataRowDateStyle;
+    private CellStyle alternateDataRowDateStyle;
+
+    private CellStyle dataRowDoubleStyle;
+    private CellStyle alternateDataRowDoubleStyle;
+
+    public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping,
+                       Map<String, String> fieldStylePatterns, $.Function<String, String> headerTransformer,
+                       String filter, boolean bigData, SheetStyle sheetStyle) {
         this.isXlsx = isXlsx;
         this.dateFormat = dateFormat;
         this.headerMapping = headerMapping;
@@ -62,6 +76,21 @@ public class ExcelWriter {
         this.filter = filter;
         this.headerTransformer = headerTransformer;
         this.bigData = bigData;
+        this.sheetStyle = sheetStyle;
+        if (null == this.sheetStyle) {
+            this.sheetStyle = SheetStyleManager.getDefault();
+        }
+    }
+
+    public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping,
+                       Map<String, String> fieldStylePatterns, $.Function<String, String> headerTransformer,
+                       String filter, boolean bigData, String sheetStyleId) {
+        this(isXlsx, dateFormat, headerMapping, fieldStylePatterns, headerTransformer, filter, bigData, SheetStyleManager.SINGLETON.getSheetStyle(sheetStyleId));
+    }
+
+    public ExcelWriter noFreeTopRow() {
+        freezeTopRow = false;
+        return this;
     }
 
     public void writeSheets(Map<String, Object> data, OutputStream os) {
@@ -105,6 +134,9 @@ public class ExcelWriter {
         if (null == data) {
             return;
         }
+        if (null != sheetStyle) {
+            sheet.setDisplayGridlines(sheetStyle.displayGridLine);
+        }
         List list = data instanceof List ? (List) data : C.list(data);
         writeSheet(sheet, list);
     }
@@ -123,11 +155,11 @@ public class ExcelWriter {
         buildColIndex(headers, colIdx);
         createHeaderRow(sheet, colIdx);
         AtomicInteger rowId = new AtomicInteger(1);
-        for (Object o: list) {
+        for (Object o : list) {
             if (null == o) {
                 continue;
             }
-            Map<String, Object> lineData = (Map)o;
+            Map<String, Object> lineData = (Map) o;
             createDataRow(sheet, colIdx, lineData, rowId);
         }
         int max = maxColId.get();
@@ -135,6 +167,9 @@ public class ExcelWriter {
             if (!isXlsx || !bigData) {
                 sheet.autoSizeColumn(i);
             }
+        }
+        if (freezeTopRow) {
+            sheet.createFreezePane(0, 1);
         }
     }
 
@@ -178,33 +213,39 @@ public class ExcelWriter {
     }
 
     private void createDataRow(Sheet sheet, C.Map<String, Integer> colIndex, Map<String, Object> data, AtomicInteger rowId) {
-        Row row = sheet.createRow(rowId.getAndIncrement());
+        int rowNumber = rowId.getAndIncrement();
+        Row row = sheet.createRow(rowNumber);
+        boolean isAlternate = rowNumber % 2 == 0;
+        CellStyle cellStyle = isAlternate ? alternateDataRowStyle : dataRowStyle;
         for (Map.Entry<String, Object> cellData : data.entrySet()) {
             String key = cellData.getKey();
             int cellId = colIndex.get(key);
             Cell cell = row.createCell(cellId);
-            CellStyle style = fieldStyles.get(Keyword.of(key));
+            String stylePattern = fieldStylePatterns.get(Keyword.of(key));
+            CellStyle specialStyle = null;
+            if (null != stylePattern) {
+                specialStyle = createSpecialFormatStyle(sheet.getWorkbook(), cellStyle, stylePattern);
+            }
             Object val = cellData.getValue();
             if (val instanceof Boolean) {
                 cell.setCellValue((Boolean) val);
+                cell.setCellStyle(null == specialStyle ? cellStyle : specialStyle);
             } else if (val instanceof Date) {
                 cell.setCellValue((Date) val);
-                cell.setCellStyle(null == style ? dateStyle : style);
+                cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDateStyle : dataRowDateStyle) : specialStyle);
             } else if (val instanceof Calendar) {
                 cell.setCellValue((Calendar) val);
-                cell.setCellStyle(null == style ? dateStyle : style);
+                cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDateStyle : dataRowDateStyle) : specialStyle);
             } else if (val instanceof Number) {
                 cell.setCellValue(((Number) val).doubleValue());
                 if (val instanceof Double || val instanceof Float || val instanceof BigDecimal) {
-                    cell.setCellStyle(null == style ? doubleStyle : style);
+                    cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDoubleStyle : dataRowDoubleStyle) : specialStyle);
                 } else {
-                    cell.setCellStyle(null == style ? intStyle : style);
+                    cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowIntStyle : dataRowIntStyle) : specialStyle);
                 }
             } else {
                 cell.setCellValue(S.string(val));
-                if (null != style) {
-                    cell.setCellStyle(style);
-                }
+                cell.setCellStyle(null == specialStyle ? cellStyle : specialStyle);
             }
         }
     }
@@ -213,6 +254,7 @@ public class ExcelWriter {
         headerRow = sheet.createRow(0);
         C.Map<Integer, String> flipped = colIndex.flipped();
         int max = maxColId.get();
+        CellStyle cellStyle = topRowStyle;
         for (int i = 0; i < max; ++i) {
             Cell cell = headerRow.createCell(i);
             String label = flipped.get(i);
@@ -228,7 +270,45 @@ public class ExcelWriter {
                 label = headerTransformer.apply(label);
             }
             cell.setCellValue(label);
+            cell.setCellStyle(cellStyle);
         }
+    }
+
+    private static CellStyle createStyle(Workbook workbook, RowStyle style, boolean boldFont) {
+        if (null == style) {
+            return null;
+        }
+        CellStyle cellStyle = workbook.createCellStyle();
+        BorderStyle borderStyle = style.borderStyle;
+        if (null != borderStyle) {
+            cellStyle.setBorderTop(borderStyle);
+            cellStyle.setBorderLeft(borderStyle);
+            cellStyle.setBorderRight(borderStyle);
+            cellStyle.setBorderBottom(borderStyle);
+        }
+        IndexedColors borderColor = style.borderColor;
+        if (null != borderColor) {
+            short c = borderColor.getIndex();
+            cellStyle.setTopBorderColor(c);
+            cellStyle.setLeftBorderColor(c);
+            cellStyle.setRightBorderColor(c);
+            cellStyle.setBottomBorderColor(c);
+        }
+        IndexedColors bgColor = style.bgColor;
+        if (null != bgColor) {
+            cellStyle.setFillForegroundColor(bgColor.getIndex());
+            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
+        IndexedColors fgColor = style.fgColor;
+        Font font = workbook.createFont();
+        if (boldFont) {
+            font.setBold(true);
+        }
+        if (null != fgColor) {
+            font.setColor(fgColor.getIndex());
+        }
+        cellStyle.setFont(font);
+        return cellStyle;
     }
 
     private void buildColIndex(Collection<String> keys, C.Map<String, Integer> colIndex) {
@@ -254,25 +334,47 @@ public class ExcelWriter {
         }
     }
 
+    private CellStyle createIntStyle(Workbook workbook, CellStyle cloneFrom) {
+        return createSpecialFormatStyle(workbook, cloneFrom, "0");
+    }
+
+    private CellStyle createDoubleStyle(Workbook workbook, CellStyle cloneFrom) {
+        return createSpecialFormatStyle(workbook, cloneFrom, "0.00");
+    }
+
+    private CellStyle createDateStyle(Workbook workbook, CellStyle cloneFrom) {
+        return createSpecialFormatStyle(workbook, cloneFrom, dateFormat);
+    }
+
+    private CellStyle createSpecialFormatStyle(Workbook workbook, CellStyle cloneFrom, String format) {
+        CreationHelper createHelper = workbook.getCreationHelper();
+        CellStyle style = workbook.createCellStyle();
+        if (null != cloneFrom) {
+            style.cloneStyleFrom(cloneFrom);
+        }
+        style.setDataFormat(createHelper.createDataFormat().getFormat(format));
+        return style;
+    }
+
     private Workbook newWorkbook() {
         Workbook workbook = isXlsx ? (bigData ? new SXSSFWorkbook() : new XSSFWorkbook()) : new HSSFWorkbook();
-        CreationHelper createHelper = workbook.getCreationHelper();
-        dateStyle = workbook.createCellStyle();
-        dateStyle.setDataFormat(createHelper.createDataFormat().getFormat(dateFormat));
-        intStyle = workbook.createCellStyle();
-        intStyle.setDataFormat(createHelper.createDataFormat().getFormat("0"));
-        doubleStyle = workbook.createCellStyle();
-        doubleStyle.setDataFormat(createHelper.createDataFormat().getFormat("0.00"));
-        if (null == fieldStylePatterns || fieldStylePatterns.isEmpty()) {
-            fieldStyles = C.Map();
-        } else {
-            fieldStyles = new HashMap<>();
-            for (Map.Entry<String, String> entry : fieldStylePatterns.entrySet()) {
-                CellStyle style = workbook.createCellStyle();
-                style.setDataFormat(createHelper.createDataFormat().getFormat(entry.getValue()));
-                fieldStyles.put(Keyword.of(entry.getKey()), style);
+        if (null != sheetStyle) {
+            topRowStyle = createStyle(workbook, sheetStyle.topRowStyle, true);
+            dataRowStyle = createStyle(workbook, sheetStyle.dataRowStyle, false);
+            alternateDataRowStyle = createStyle(workbook, sheetStyle.alternateDataRowStyle, false);
+            if (null == alternateDataRowStyle) {
+                alternateDataRowStyle = dataRowStyle;
             }
         }
+
+        dataRowDateStyle = createDateStyle(workbook, dataRowStyle);
+        dataRowIntStyle = createIntStyle(workbook, dataRowStyle);
+        dataRowDoubleStyle = createDoubleStyle(workbook, dataRowStyle);
+
+        alternateDataRowDateStyle = createDateStyle(workbook, alternateDataRowStyle);
+        alternateDataRowIntStyle = createIntStyle(workbook, alternateDataRowStyle);
+        alternateDataRowDoubleStyle = createDoubleStyle(workbook, alternateDataRowStyle);
+
         return workbook;
     }
 
@@ -283,6 +385,7 @@ public class ExcelWriter {
         private Map<String, String> fieldStylePatterns = new HashMap<>();
         private String filter;
         private boolean bigData;
+        private SheetStyle sheetStyle;
         private $.Function<String, String> headerTransformer;
 
         public Builder asXlsx() {
@@ -292,6 +395,16 @@ public class ExcelWriter {
 
         public Builder filter(String filter) {
             this.filter = filter;
+            return this;
+        }
+
+        public Builder sheetStyle(SheetStyle sheetStyle) {
+            this.sheetStyle = sheetStyle;
+            return this;
+        }
+
+        public Builder sheetStyle(String sheetStyleId) {
+            this.sheetStyle = SheetStyleManager.SINGLETON.getSheetStyle(sheetStyleId);
             return this;
         }
 
@@ -331,7 +444,7 @@ public class ExcelWriter {
         }
 
         public ExcelWriter build() {
-            return new ExcelWriter(isXlsx, dateFormat, headerMapping, fieldStylePatterns, headerTransformer, filter, bigData);
+            return new ExcelWriter(isXlsx, dateFormat, headerMapping, fieldStylePatterns, headerTransformer, filter, bigData, sheetStyle);
         }
     }
 

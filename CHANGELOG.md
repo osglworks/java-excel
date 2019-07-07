@@ -1,5 +1,9 @@
 # osgl-excel CHANGE LOG
 
+1.7.0
+* ExcelWriter: Freeze top row by default #16
+* Provide styling support #17
+
 1.6.0 - 19/Apr/2019
 * update to osgl-tool 1.19.2
 
