@@ -1,5 +1,25 @@
 package org.osgl.xls;
 
+/*-
+ * #%L
+ * Java Excel Tool
+ * %%
+ * Copyright (C) 2017 - 2019 OSGL (Open Source General Library)
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
 import org.apache.poi.hssf.record.cf.BorderFormatting;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.IndexedColors;
@@ -160,6 +180,86 @@ public class SheetStyleManager {
                     LOGGER.warn("unknown border trait: %s", trait);
                 }
             }
+        }
+        s = properties.getProperty(prefix + "border.top");
+        if (S.notBlank(s)) {
+            S.List list = S.fastSplit(s, ",");
+            for (String trait : list) {
+                trait = trait.toUpperCase();
+                if (COLORS.containsKey(trait)) {
+                    rowStyle.topBorderColor = colorFor(trait);
+                } else if (BORDERS.containsKey(trait)) {
+                    rowStyle.topBorderStyle = borderStyleFor(trait);
+                } else {
+                    LOGGER.warn("unknown border trait: %s", trait);
+                }
+            }
+        }
+        if (null == rowStyle.topBorderStyle) {
+            rowStyle.topBorderStyle = rowStyle.borderStyle;
+        }
+        if (null == rowStyle.topBorderColor) {
+            rowStyle.topBorderColor = rowStyle.borderColor;
+        }
+        s = properties.getProperty(prefix + "border.left");
+        if (S.notBlank(s)) {
+            S.List list = S.fastSplit(s, ",");
+            for (String trait : list) {
+                trait = trait.toUpperCase();
+                if (COLORS.containsKey(trait)) {
+                    rowStyle.leftBorderColor = colorFor(trait);
+                } else if (BORDERS.containsKey(trait)) {
+                    rowStyle.leftBorderStyle = borderStyleFor(trait);
+                } else {
+                    LOGGER.warn("unknown border trait: %s", trait);
+                }
+            }
+        }
+        if (null == rowStyle.leftBorderStyle) {
+            rowStyle.leftBorderStyle = rowStyle.borderStyle;
+        }
+        if (null == rowStyle.leftBorderColor) {
+            rowStyle.leftBorderColor = rowStyle.borderColor;
+        }
+        s = properties.getProperty(prefix + "border.right");
+        if (S.notBlank(s)) {
+            S.List list = S.fastSplit(s, ",");
+            for (String trait : list) {
+                trait = trait.toUpperCase();
+                if (COLORS.containsKey(trait)) {
+                    rowStyle.rightBorderColor = colorFor(trait);
+                } else if (BORDERS.containsKey(trait)) {
+                    rowStyle.rightBorderStyle = borderStyleFor(trait);
+                } else {
+                    LOGGER.warn("unknown border trait: %s", trait);
+                }
+            }
+        }
+        if (null == rowStyle.rightBorderStyle) {
+            rowStyle.rightBorderStyle = rowStyle.borderStyle;
+        }
+        if (null == rowStyle.rightBorderColor) {
+            rowStyle.rightBorderColor = rowStyle.borderColor;
+        }
+        s = properties.getProperty(prefix + "border.bottom");
+        if (S.notBlank(s)) {
+            S.List list = S.fastSplit(s, ",");
+            for (String trait : list) {
+                trait = trait.toUpperCase();
+                if (COLORS.containsKey(trait)) {
+                    rowStyle.bottomBorderColor = colorFor(trait);
+                } else if (BORDERS.containsKey(trait)) {
+                    rowStyle.bottomBorderStyle = borderStyleFor(trait);
+                } else {
+                    LOGGER.warn("unknown border trait: %s", trait);
+                }
+            }
+        }
+        if (null == rowStyle.bottomBorderStyle) {
+            rowStyle.bottomBorderStyle = rowStyle.borderStyle;
+        }
+        if (null == rowStyle.bottomBorderColor) {
+            rowStyle.bottomBorderColor = rowStyle.borderColor;
         }
         s = properties.getProperty(prefix + "bgColor");
         if (S.notBlank(s)) {

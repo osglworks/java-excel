@@ -155,12 +155,13 @@ public class ExcelWriter {
         buildColIndex(headers, colIdx);
         createHeaderRow(sheet, colIdx);
         AtomicInteger rowId = new AtomicInteger(1);
+        int maxCol = maxColId.get();
         for (Object o : list) {
             if (null == o) {
                 continue;
             }
             Map<String, Object> lineData = (Map) o;
-            createDataRow(sheet, colIdx, lineData, rowId);
+            createDataRow(sheet, colIdx, lineData, rowId, maxCol);
         }
         int max = maxColId.get();
         for (int i = 0; i < max; ++i) {
@@ -212,42 +213,60 @@ public class ExcelWriter {
         return null;
     }
 
-    private void createDataRow(Sheet sheet, C.Map<String, Integer> colIndex, Map<String, Object> data, AtomicInteger rowId) {
+    private void createDataRow(Sheet sheet, C.Map<String, Integer> colIndex, Map<String, Object> data, AtomicInteger rowId, int maxCol) {
         int rowNumber = rowId.getAndIncrement();
         Row row = sheet.createRow(rowNumber);
         boolean isAlternate = rowNumber % 2 == 0;
         CellStyle cellStyle = isAlternate ? alternateDataRowStyle : dataRowStyle;
+        //row.setRowStyle(cellStyle);
+        Set<Integer> cols = new HashSet<>(maxCol);
+        for (int i = 0; i < maxCol; ++i) {
+            cols.add(i);
+        }
         for (Map.Entry<String, Object> cellData : data.entrySet()) {
             String key = cellData.getKey();
-            int cellId = colIndex.get(key);
-            Cell cell = row.createCell(cellId);
-            String stylePattern = fieldStylePatterns.get(Keyword.of(key));
-            CellStyle specialStyle = null;
-            if (null != stylePattern) {
-                specialStyle = createSpecialFormatStyle(sheet.getWorkbook(), cellStyle, stylePattern);
-            }
             Object val = cellData.getValue();
-            if (val instanceof Boolean) {
-                cell.setCellValue((Boolean) val);
-                cell.setCellStyle(null == specialStyle ? cellStyle : specialStyle);
-            } else if (val instanceof Date) {
-                cell.setCellValue((Date) val);
-                cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDateStyle : dataRowDateStyle) : specialStyle);
-            } else if (val instanceof Calendar) {
-                cell.setCellValue((Calendar) val);
-                cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDateStyle : dataRowDateStyle) : specialStyle);
-            } else if (val instanceof Number) {
-                cell.setCellValue(((Number) val).doubleValue());
-                if (val instanceof Double || val instanceof Float || val instanceof BigDecimal) {
-                    cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDoubleStyle : dataRowDoubleStyle) : specialStyle);
-                } else {
-                    cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowIntStyle : dataRowIntStyle) : specialStyle);
-                }
-            } else {
-                cell.setCellValue(S.string(val));
-                cell.setCellStyle(null == specialStyle ? cellStyle : specialStyle);
-            }
+            String stylePattern = fieldStylePatterns.get(key);
+            int cellId = colIndex.get(key);
+            cols.remove(cellId);
+            writeCell(sheet, row, cellId, stylePattern, cellStyle, val, isAlternate);
         }
+        for (int cellId : cols) {
+            writeCell(sheet, row, cellId, null, cellStyle, "", isAlternate);
+        }
+    }
+
+    private void writeCell(Sheet sheet, Row row, int cellId, String stylePattern, CellStyle cellStyle, Object val, boolean isAlternate) {
+        Cell cell = row.createCell(cellId);
+        CellStyle specialStyle = null;
+        if (null != stylePattern) {
+            specialStyle = createSpecialFormatStyle(sheet.getWorkbook(), cellStyle, stylePattern);
+        }
+        if (val instanceof Boolean) {
+            cell.setCellValue((Boolean) val);
+            cell.setCellStyle(null == specialStyle ? cellStyle : specialStyle);
+        } else if (val instanceof Date) {
+            cell.setCellValue((Date) val);
+            cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDateStyle : dataRowDateStyle) : specialStyle);
+        } else if (val instanceof Calendar) {
+            cell.setCellValue((Calendar) val);
+            cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDateStyle : dataRowDateStyle) : specialStyle);
+        } else if (val instanceof Number) {
+            cell.setCellValue(((Number) val).doubleValue());
+            if (val instanceof Double || val instanceof Float || val instanceof BigDecimal) {
+                cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowDoubleStyle : dataRowDoubleStyle) : specialStyle);
+            } else {
+                cell.setCellStyle(null == specialStyle ? (isAlternate ? alternateDataRowIntStyle : dataRowIntStyle) : specialStyle);
+            }
+        } else {
+            String s = S.string(val);
+            if (S.isEmpty(s)) {
+                s = " "; // force it fill background color
+            }
+            cell.setCellValue(s);
+            cell.setCellStyle(null == specialStyle ? cellStyle : specialStyle);
+        }
+
     }
 
     private void createHeaderRow(Sheet sheet, C.Map<String, Integer> colIndex) {
@@ -274,32 +293,79 @@ public class ExcelWriter {
         }
     }
 
-    private static CellStyle createStyle(Workbook workbook, RowStyle style, boolean boldFont) {
+    private static CellStyle createStyle(Workbook workbook, RowStyle style, RowStyle parentStyle, boolean boldFont) {
         if (null == style) {
             return null;
         }
         CellStyle cellStyle = workbook.createCellStyle();
-        BorderStyle borderStyle = style.borderStyle;
+        BorderStyle borderStyle = style.topBorderStyle;
+        if (null == borderStyle) {
+            borderStyle = parentStyle.topBorderStyle;
+        }
         if (null != borderStyle) {
             cellStyle.setBorderTop(borderStyle);
-            cellStyle.setBorderLeft(borderStyle);
+        }
+        borderStyle = style.rightBorderStyle;
+        if (null == borderStyle) {
+            borderStyle = parentStyle.rightBorderStyle;
+        }
+        if (null != borderStyle) {
             cellStyle.setBorderRight(borderStyle);
+        }
+        borderStyle = style.bottomBorderStyle;
+        if (null == borderStyle) {
+            borderStyle = parentStyle.bottomBorderStyle;
+        }
+        if (null != borderStyle) {
             cellStyle.setBorderBottom(borderStyle);
         }
-        IndexedColors borderColor = style.borderColor;
+        borderStyle = style.leftBorderStyle;
+        if (null == borderStyle) {
+            borderStyle = parentStyle.leftBorderStyle;
+        }
+        if (null != borderStyle) {
+            cellStyle.setBorderLeft(borderStyle);
+        }
+        IndexedColors borderColor = style.topBorderColor;
+        if (null == borderColor) {
+            borderColor = parentStyle.topBorderColor;
+        }
         if (null != borderColor) {
-            short c = borderColor.getIndex();
-            cellStyle.setTopBorderColor(c);
-            cellStyle.setLeftBorderColor(c);
-            cellStyle.setRightBorderColor(c);
-            cellStyle.setBottomBorderColor(c);
+            cellStyle.setTopBorderColor(borderColor.getIndex());
+        }
+        borderColor = style.rightBorderColor;
+        if (null == borderColor) {
+            borderColor = parentStyle.rightBorderColor;
+        }
+        if (null != borderColor) {
+            cellStyle.setRightBorderColor(borderColor.getIndex());
+        }
+        borderColor = style.bottomBorderColor;
+        if (null == borderColor) {
+            borderColor = parentStyle.bottomBorderColor;
+        }
+        if (null != borderColor) {
+            cellStyle.setBottomBorderColor(borderColor.getIndex());
+        }
+        borderColor = style.leftBorderColor;
+        if (null == borderColor) {
+            borderColor = parentStyle.leftBorderColor;
+        }
+        if (null != borderColor) {
+            cellStyle.setLeftBorderColor(borderColor.getIndex());
         }
         IndexedColors bgColor = style.bgColor;
+        if (null == bgColor) {
+            bgColor = parentStyle.bgColor;
+        }
         if (null != bgColor) {
             cellStyle.setFillForegroundColor(bgColor.getIndex());
             cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         }
         IndexedColors fgColor = style.fgColor;
+        if (null == fgColor) {
+            fgColor = parentStyle.fgColor;
+        }
         Font font = workbook.createFont();
         if (boldFont) {
             font.setBold(true);
@@ -359,9 +425,9 @@ public class ExcelWriter {
     private Workbook newWorkbook() {
         Workbook workbook = isXlsx ? (bigData ? new SXSSFWorkbook() : new XSSFWorkbook()) : new HSSFWorkbook();
         if (null != sheetStyle) {
-            topRowStyle = createStyle(workbook, sheetStyle.topRowStyle, true);
-            dataRowStyle = createStyle(workbook, sheetStyle.dataRowStyle, false);
-            alternateDataRowStyle = createStyle(workbook, sheetStyle.alternateDataRowStyle, false);
+            topRowStyle = createStyle(workbook, sheetStyle.topRowStyle, sheetStyle.topRowStyle, true);
+            dataRowStyle = createStyle(workbook, sheetStyle.dataRowStyle, sheetStyle.dataRowStyle, false);
+            alternateDataRowStyle = createStyle(workbook, sheetStyle.alternateDataRowStyle, sheetStyle.dataRowStyle, false);
             if (null == alternateDataRowStyle) {
                 alternateDataRowStyle = dataRowStyle;
             }
