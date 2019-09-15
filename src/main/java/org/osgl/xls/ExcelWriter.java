@@ -22,16 +22,20 @@ package org.osgl.xls;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.osgl.$;
 import org.osgl.logging.LogManager;
 import org.osgl.logging.Logger;
-import org.osgl.util.*;
+import org.osgl.util.C;
+import org.osgl.util.E;
+import org.osgl.util.IO;
+import org.osgl.util.S;
 import osgl.version.Version;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,6 +69,7 @@ public class ExcelWriter {
 
     private CellStyle dataRowDoubleStyle;
     private CellStyle alternateDataRowDoubleStyle;
+    private Map<$.T2<CellStyle, String>, CellStyle> specialStyleMap = new HashMap<>();
 
     public ExcelWriter(boolean isXlsx, String dateFormat, Map<String, String> headerMapping,
                        Map<String, String> fieldStylePatterns, $.Function<String, String> headerTransformer,
@@ -72,7 +77,7 @@ public class ExcelWriter {
         this.isXlsx = isXlsx;
         this.dateFormat = dateFormat;
         this.headerMapping = headerMapping;
-        this.fieldStylePatterns = null == fieldStylePatterns ? C.<String, String>Map() : fieldStylePatterns;
+        this.fieldStylePatterns = null != fieldStylePatterns ? fieldStylePatterns : C.<String, String>Map();
         this.filter = filter;
         this.headerTransformer = headerTransformer;
         this.bigData = bigData;
@@ -240,7 +245,7 @@ public class ExcelWriter {
         Cell cell = row.createCell(cellId);
         CellStyle specialStyle = null;
         if (null != stylePattern) {
-            specialStyle = createSpecialFormatStyle(sheet.getWorkbook(), cellStyle, stylePattern);
+            specialStyle = getSpecialFormatStyle(sheet.getWorkbook(), cellStyle, stylePattern);
         }
         if (val instanceof Boolean) {
             cell.setCellValue((Boolean) val);
@@ -410,6 +415,16 @@ public class ExcelWriter {
 
     private CellStyle createDateStyle(Workbook workbook, CellStyle cloneFrom) {
         return createSpecialFormatStyle(workbook, cloneFrom, dateFormat);
+    }
+
+    private CellStyle getSpecialFormatStyle(Workbook workbook, CellStyle cloneFrom, String format) {
+        $.T2<CellStyle, String> key = $.T2(cloneFrom, format);
+        CellStyle style = specialStyleMap.get(key);
+        if (null == style) {
+            style = createSpecialFormatStyle(workbook, cloneFrom, format);
+            specialStyleMap.put(key, style);
+        }
+        return style;
     }
 
     private CellStyle createSpecialFormatStyle(Workbook workbook, CellStyle cloneFrom, String format) {

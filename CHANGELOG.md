@@ -1,6 +1,10 @@
 # osgl-excel CHANGE LOG
 
-1.7.0
+1.7.1 - 15/Sep/2019
+* update to osgl-tool 1.20.1
+* Error rendering xls file: The maximum number of cell styles was exceeded #18
+
+1.7.0 - 21/Jul/2019
 * update to osgl-tool 1.20.0
 * ExcelWriter: Freeze top row by default #16
 * Provide styling support #17
