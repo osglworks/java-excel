@@ -22,6 +22,7 @@ package org.osgl.xls;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.osgl.$;
@@ -495,7 +496,7 @@ public class ExcelWriter {
         }
 
         public Builder bigData() {
-            this.bigData = bigData;
+            this.bigData = true;
             return this;
         }
 

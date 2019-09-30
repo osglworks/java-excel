@@ -1,5 +1,8 @@
 # osgl-excel CHANGE LOG
 
+1.7.2 - 30/Sep/2019
+* fix logic issue in ExcelWriter.Builder.bigData
+
 1.7.1 - 15/Sep/2019
 * update to osgl-tool 1.20.1
 * Error rendering xls file: The maximum number of cell styles was exceeded #18
