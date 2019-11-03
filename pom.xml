@@ -20,7 +20,7 @@
 
   <artifactId>osgl-excel</artifactId>
   <packaging>jar</packaging>
-  <version>1.8.0-SNAPSHOT</version>
+  <version>1.8.0</version>
 
   <name>Java Excel Tool</name>
   <description>An easy to use and flexible Excel file reader/writer</description>
