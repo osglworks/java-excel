@@ -258,7 +258,7 @@ public class ExcelReader {
                         continue;
                     }
                     try {
-                        Object value = readCellValue(cell);
+                        Object value = readCellValue(cell, tolerantLevel);
                         if (null != value) {
                             if (null != terminator && terminator.equals(value)) {
                                 break TERMINATED;
@@ -285,11 +285,15 @@ public class ExcelReader {
         }
     }
 
-    private Object readCellValue(Cell cell) {
-        return readCellValue(cell, cell.getCellTypeEnum());
+    public static Object readCellValue(Cell cell) {
+        return readCellValue(cell, TolerantLevel.AGGRESSIVE_READ);
     }
 
-    private Object readCellValue(Cell cell, CellType type) {
+    public static Object readCellValue(Cell cell, TolerantLevel tolerantLevel) {
+        return readCellValue(cell, cell.getCellTypeEnum(), tolerantLevel);
+    }
+
+    private static Object readCellValue(Cell cell, CellType type, TolerantLevel tolerantLevel) {
         switch (type) {
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
@@ -303,7 +307,7 @@ public class ExcelReader {
                 }
                 return n;
             case FORMULA:
-                return readCellValue(cell, cell.getCachedFormulaResultTypeEnum());
+                return readCellValue(cell, cell.getCachedFormulaResultTypeEnum(), tolerantLevel);
             case BOOLEAN:
                 return cell.getBooleanCellValue();
             case ERROR:

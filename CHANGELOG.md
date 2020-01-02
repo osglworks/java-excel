@@ -1,5 +1,9 @@
 # osgl-excel CHANGE LOG
 
+1.9.0 - 02/Jan/2020
+* update to osgl-tool 1.23.0
+* ExcelReader - make `readCellValue` methods be static public accessible 
+
 1.8.0 - 03/Nov/2019
 * update to osgl-tool 1.21.0
 
