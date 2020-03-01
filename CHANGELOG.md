@@ -1,5 +1,8 @@
 # osgl-excel CHANGE LOG
 
+1.10.0
+* ExcelWriter - set auto filter #19
+
 1.9.0 - 02/Jan/2020
 * update to osgl-tool 1.23.0
 * ExcelReader - make `readCellValue` methods be static public accessible 

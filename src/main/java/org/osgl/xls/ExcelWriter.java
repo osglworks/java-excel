@@ -22,6 +22,7 @@ package org.osgl.xls;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -33,6 +34,7 @@ import org.osgl.util.E;
 import org.osgl.util.IO;
 import org.osgl.util.S;
 import osgl.version.Version;
+import osgl.version.Versioned;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,6 +43,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Versioned
 public class ExcelWriter {
 
     public static final Version VERSION = ExcelReader.VERSION;
@@ -56,6 +59,7 @@ public class ExcelWriter {
     private Map<String, String> fieldStylePatterns;
     private boolean bigData;
     private boolean freezeTopRow = true;
+    private boolean autoFilter = true;
     private SheetStyle sheetStyle;
 
     private CellStyle topRowStyle;
@@ -96,6 +100,11 @@ public class ExcelWriter {
 
     public ExcelWriter noFreeTopRow() {
         freezeTopRow = false;
+        return this;
+    }
+
+    public ExcelWriter noAutoFilter() {
+        autoFilter = false;
         return this;
     }
 
@@ -158,6 +167,9 @@ public class ExcelWriter {
         list = flatMap(list);
         Set<String> headers = extractHeaders((List) list);
         C.Map<String, Integer> colIdx = C.newMap();
+        if (sheet instanceof SXSSFSheet) {
+            ((SXSSFSheet) sheet).trackAllColumnsForAutoSizing();
+        }
         buildColIndex(headers, colIdx);
         createHeaderRow(sheet, colIdx);
         AtomicInteger rowId = new AtomicInteger(1);
@@ -171,12 +183,17 @@ public class ExcelWriter {
         }
         int max = maxColId.get();
         for (int i = 0; i < max; ++i) {
-            if (!isXlsx || !bigData) {
-                sheet.autoSizeColumn(i);
+            sheet.autoSizeColumn(i);
+            int w = sheet.getColumnWidth(i);
+            if (w / 256 > 50) {
+                sheet.setColumnWidth(i, 50 * 256);
             }
         }
         if (freezeTopRow) {
             sheet.createFreezePane(0, 1);
+        }
+        if (autoFilter) {
+            sheet.setAutoFilter(new CellRangeAddress(headerRow.getRowNum(), headerRow.getRowNum(), headerRow.getFirstCellNum(), headerRow.getLastCellNum() - 1));
         }
     }
 
