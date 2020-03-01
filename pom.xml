@@ -18,7 +18,7 @@
 
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>osgl-excel</artifactId>
+  <artifactId>osgl-excel-java7</artifactId>
   <packaging>jar</packaging>
   <version>1.10.0-SNAPSHOT</version>
 
@@ -47,9 +47,7 @@
     <osgl-storage.version>1.10.0</osgl-storage.version>
 
     <!-- the 4.x version does not work on java 7 -->
-    <poi.version>4.1.0</poi.version>
-    <poi-java7.version>3.17</poi-java7.version>
-
+    <poi.version>3.17</poi.version>
 
   </properties>
 
