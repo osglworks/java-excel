@@ -1,6 +1,7 @@
 # osgl-excel CHANGE LOG
 
-1.10.0
+1.10.0 - 02/Mar/2020
+* update to osgl-tool 1.24.0
 * ExcelWriter - set auto filter #19
 
 1.9.0 - 02/Jan/2020

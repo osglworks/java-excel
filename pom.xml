@@ -41,16 +41,12 @@
   <properties>
     <scm.url>git@github.com:osglworks/java-excel-reader.git</scm.url>
 
-    <osgl-tool.version>1.24.0-SNAPSHOT</osgl-tool.version>
+    <osgl-tool.version>1.24.0</osgl-tool.version>
     <osgl-csv.version>1.2.0</osgl-csv.version>
     <osgl-logging.version>1.5.0</osgl-logging.version>
     <osgl-storage.version>1.10.0</osgl-storage.version>
 
-    <!-- the 4.x version does not work on java 7 -->
-    <poi.version>4.1.0</poi.version>
-    <poi-java7.version>3.17</poi-java7.version>
-
-
+    <poi.version>4.1.2</poi.version>
   </properties>
 
   <scm>
