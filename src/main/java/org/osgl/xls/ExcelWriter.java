@@ -152,7 +152,21 @@ public class ExcelWriter {
         if (null != sheetStyle) {
             sheet.setDisplayGridlines(sheetStyle.displayGridLine);
         }
-        List list = data instanceof List ? (List) data : C.list(data);
+        List list;
+        if (data instanceof List) {
+            list = (List) data;
+        } else if (data instanceof Iterable) {
+            Iterable iterable = (Iterable)data;
+            list = C.list(iterable);
+        } else if (data instanceof Iterator) {
+            Iterator iterator = (Iterator)data;
+            list = C.list(iterator);
+        } else if (data instanceof Enumeration) {
+            Enumeration enumeration = (Enumeration) data;
+            list = C.list(enumeration);
+        } else {
+            list = C.list(data);
+        }
         writeSheet(sheet, list);
     }
 
@@ -193,7 +207,11 @@ public class ExcelWriter {
             sheet.createFreezePane(0, 1);
         }
         if (autoFilter) {
-            sheet.setAutoFilter(new CellRangeAddress(headerRow.getRowNum(), headerRow.getRowNum(), headerRow.getFirstCellNum(), headerRow.getLastCellNum() - 1));
+            int firstCol = headerRow.getFirstCellNum();
+            int lastCol = headerRow.getLastCellNum() - 1;
+            if (firstCol >= 0 && lastCol > firstCol) {
+                sheet.setAutoFilter(new CellRangeAddress(headerRow.getRowNum(), headerRow.getRowNum(), headerRow.getFirstCellNum(), headerRow.getLastCellNum() - 1));
+            }
         }
     }
 

@@ -20,8 +20,6 @@ package org.osgl.xls;
  * #L%
  */
 
-import org.apache.poi.ss.usermodel.IndexedColors;
-
 /**
  * Define sheet style
  */
