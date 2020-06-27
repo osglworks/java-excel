@@ -1,5 +1,8 @@
 # osgl-excel CHANGE LOG
 
+1.10.2 - 27/Jun/2020
+* Update to osgl-tool 1.25.0
+
 1.10.1 - 04/Mar/2020
 * ExcelWriter - when passing data of Iterable type, it renders an empty spreadsheet #21
 * ExcelWriter - `IllegalArgumentException` when write a single object or empty list #20
