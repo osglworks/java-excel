@@ -46,7 +46,7 @@
     <osgl-logging.version>1.5.1</osgl-logging.version>
     <osgl-storage.version>1.11.1</osgl-storage.version>
 
-    <poi.version>4.1.2</poi.version>
+    <poi.version>5.4.0</poi.version>
   </properties>
 
   <scm>
